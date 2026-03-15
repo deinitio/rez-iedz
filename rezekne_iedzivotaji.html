@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rēzeknes iedzīvotāju dinamika</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: #f0ece3; color: #1e1e2e;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+  }
+  .loader {
+    text-align: center; max-width: 400px;
+  }
+  .loader h1 {
+    font-size: 1.3rem; color: #1a3a6b; margin-bottom: .5rem;
+  }
+  .loader p {
+    font-size: .85rem; color: #888; margin-bottom: 1.2rem;
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid #e8e4dc;
+    border-top-color: #1a3a6b; border-radius: 50%;
+    animation: spin .7s linear infinite; margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fallback {
+    display: none; margin-top: 1.5rem;
+    background: #fff; border-radius: 12px; padding: 1.2rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+  .fallback a {
+    display: block; padding: .8rem 1rem; margin: .4rem 0;
+    border-radius: 8px; text-decoration: none; font-weight: 600;
+    font-size: .9rem; transition: all .15s;
+  }
+  .fallback a:first-child {
+    background: #1a3a6b; color: #fff;
+  }
+  .fallback a:first-child:hover { background: #143058; }
+  .fallback a:last-child {
+    background: #f0ece3; color: #1a3a6b;
+  }
+  .fallback a:last-child:hover { background: #e8e4dc; }
+</style>
+<script>
+  // Auto-detect and redirect
+  var mobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent)
+            || (window.innerWidth <= 768 && 'ontouchstart' in window);
+
+  // Redirect immediately
+  if (mobile) {
+    window.location.replace('rezekne_mobile.html');
+  } else {
+    window.location.replace('rezekne_desktop.html');
+  }
+
+  // Fallback: if redirect didn't work after 2 seconds, show manual links
+  setTimeout(function() {
+    var el = document.querySelector('.fallback');
+    if (el) el.style.display = 'block';
+    var sp = document.querySelector('.spinner');
+    if (sp) sp.style.display = 'none';
+    var ld = document.querySelector('.loader p');
+    if (ld) ld.textContent = 'Izvēlieties versiju:';
+  }, 2000);
+</script>
+</head>
+<body>
+  <div class="loader">
+    <h1>Rēzeknes iedzīvotāju dinamika</h1>
+    <p>Notiek pāradresācija...</p>
+    <div class="spinner"></div>
+    <div class="fallback">
+      <a href="rezekne_mobile.html">📱 Mobilā versija</a>
+      <a href="rezekne_desktop.html">🖥️ Datora versija</a>
+    </div>
+  </div>
+</body>
+</html>

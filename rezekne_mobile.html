@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rēzeknes iedzīvotāju dinamika</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   MOBILE-FIRST DESIGN — Rēzeknes demogrāfija
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  background: #f0ece3; color: #1e1e2e;
+  min-height: 100vh; padding: 8px 8px 20px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Header ── */
+.page-header { margin: 0 0 8px; }
+.page-header h1 { font-size: 1.15rem; font-weight: 700; color: #1a3a6b; letter-spacing: -0.02em; }
+.page-header p  { margin-top: 4px; font-size: .78rem; color: #555; line-height: 1.5; }
+
+/* ── Card ── */
+.card {
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  margin: 0 0 8px; padding: 10px 8px;
+}
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat-card {
+  background:#f8f5ef; border-radius:8px;
+  padding: 8px 10px; border-left:3px solid var(--accent);
+  cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,.05);
+}
+.stat-card:active { transform:scale(.97); }
+.stat-value { font-size:1.1rem; font-weight:800; color:#1a3a6b; line-height:1; margin-bottom:2px; }
+.stat-label { font-size:.62rem; color:#666; line-height:1.35; }
+
+/* ── Tab bar: horizontal scroll pills ── */
+.tab-bar {
+  display: flex; gap: 5px; padding: 4px 0 6px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; border-bottom: none;
+  margin-bottom: 8px;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0; white-space: nowrap;
+  padding: 8px 12px; min-height: 40px;
+  border: none; background: #f0ece3; cursor: pointer;
+  font-size: .72rem; font-weight: 600; color: #888;
+  border-radius: 8px; transition: all .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn:active { transform:scale(.95); }
+.tab-btn.active { color:#fff; background:#1a3a6b; box-shadow:0 2px 8px rgba(26,58,107,.3); }
+
+/* ── Tab panels ── */
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* ── Controls ── */
+.controls { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.controls > div:first-child { display:flex; align-items:center; gap:6px; }
+.controls > div:first-child > span { font-size:.6rem !important; font-weight:700; color:#aaa; }
+.toggle-group { display:inline-flex; background:#f0ece3; border-radius:6px; padding:2px; gap:1px; }
+.toggle-btn {
+  padding: 6px 12px; min-height:32px; border:none; background:transparent;
+  border-radius:5px; font-size:.72rem; font-weight:600; color:#666;
+  cursor:pointer; transition:all .15s;
+}
+.toggle-btn:active { transform:scale(.95); }
+.toggle-btn.active { background:#fff; color:#1a3a6b; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+
+/* ── Legend ── */
+.chart-legend {
+  display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; align-items:center;
+}
+.legend-hint { font-size:.6rem; color:#aaa; font-style:italic; width:100%; }
+.legend-item {
+  display:flex; align-items:center; gap:3px;
+  font-size:.66rem; color:#333; cursor:pointer;
+  padding: 5px 8px; border-radius:6px; min-height:30px;
+  border: 1.5px solid transparent;
+  transition:all .15s; user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.legend-item:active { transform:scale(.95); }
+.legend-item.selected { border-color: var(--lc); background: var(--lbg); color:#111; font-weight:600; }
+.legend-item.dimmed  { opacity:.25; }
+.legend-dot  { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+.legend-line { width:16px; height:3px; border-radius:2px; flex-shrink:0; }
+.legend-dashed {
+  background:repeating-linear-gradient(to right,#e07b39 0,#e07b39 4px,transparent 4px,transparent 7px);
+}
+
+/* ── Clear selection ── */
+.clear-btn {
+  display:none; padding: 6px 12px; border-radius:20px;
+  background:#fee2e2; border:none; color:#b91c1c; font-size:.66rem;
+  font-weight:700; cursor:pointer; min-height:30px; align-self:flex-start;
+}
+.clear-btn.visible { display:inline-block; }
+
+/* ── Gender toggles ── */
+.gender-toggles { display:flex; gap:4px; margin-left:0; }
+.gender-toggle {
+  padding: 5px 10px; border-radius:6px; border:1.5px solid #ddd;
+  background:#fff; font-size:.66rem; font-weight:600; cursor:pointer;
+  min-height:30px; user-select:none;
+  display:inline-flex; align-items:center; gap:2px;
+}
+.gender-toggle.active-m { border-color:#2563EB; background:#eff6ff; color:#2563EB; }
+.gender-toggle.active-f { border-color:#DC2626; background:#fef2f2; color:#DC2626; }
+
+/* ── View hint ── */
+.view-hint {
+  display:none; padding: 6px 10px; border-radius:6px;
+  background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
+  font-size:.68rem; margin-bottom:6px; align-items:center; gap:4px;
+}
+.view-hint.visible { display:flex; }
+
+/* ── Chart containers — SHORT for mobile ── */
+.chart-wrap  { position:relative; height:260px; }
+.chart-wrap2 { position:relative; height:240px; }
+
+/* ── Era collapsible ── */
+.era-collapse-hdr {
+  display:inline-flex; align-items:center; gap:4px;
+  cursor:pointer; user-select:none; margin-bottom:4px;
+}
+.era-collapse-title { font-size:.6rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#aaa; }
+.era-collapse-arrow { font-size:.55rem; color:#aaa; display:inline-block; transition:transform .2s; line-height:1; }
+.era-collapse-arrow.open { transform:rotate(90deg); }
+#era-table-wrap { display:none; }
+
+/* ── Era table ── */
+.era-table { width:100%; border-collapse:collapse; margin-bottom:6px; font-size:.62rem; }
+.era-table th {
+  text-align:left; font-size:.55rem; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:#aaa; padding:2px 4px 3px;
+  border-bottom:1.5px solid #e8e4dc;
+}
+.era-table td { padding:2px 4px; color:#444; vertical-align:middle; }
+.era-table tr:nth-child(even) td { background:#fafaf8; }
+/* Hide "Raksturojums" column on mobile */
+.era-table th:nth-child(4),
+.era-table td:nth-child(4) { display:none; }
+.era-swatch-td { width:12px; height:12px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:3px; }
+.era-years { color:#888; white-space:nowrap; }
+
+/* ── Tooltip — bottom sheet on mobile ── */
+.ct {
+  background:rgba(15,23,42,.96); backdrop-filter:blur(8px);
+  border-radius:14px 14px 0 0; padding:12px 14px 16px;
+  pointer-events:none; position:fixed;
+  left:0 !important; right:0; bottom:0 !important;
+  width:100%; max-width:none; min-width:auto;
+  box-shadow:0 -8px 30px rgba(0,0,0,.35);
+  border:none; border-top:1px solid rgba(255,255,255,.1);
+  transition:transform .2s ease, opacity .15s;
+  transform:translateY(100%); z-index:9999;
+  max-height:55vh; overflow-y:auto;
+  -webkit-overflow-scrolling: touch;
+}
+.ct.visible { transform:translateY(0); opacity:1 !important; pointer-events:auto; }
+.ct-year  { font-size:.88rem; font-weight:700; color:#e2e8f0; margin-bottom:2px; }
+.ct-main  { font-size:1.1rem; font-weight:800; color:#7dd3fc; margin-bottom:2px; }
+.ct-sub   { font-size:.66rem; color:#94a3b8; }
+.ct-note  { font-size:.66rem; color:#94a3b8; line-height:1.4;
+            border-top:1px solid rgba(255,255,255,.1); margin-top:4px; padding-top:4px; }
+.ct-rows  { margin-top:4px; display:flex; flex-direction:column; gap:1px; }
+.ct-row   { display:flex; justify-content:space-between; align-items:center; gap:6px;
+            font-size:.68rem; color:#cbd5e1; }
+.ct-lbl   { display:flex; align-items:center; gap:3px; }
+.ct-sw    { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.ct-val   { color:#f1f5f9; font-weight:600; white-space:nowrap; }
+.ct-pct   { color:#64748b; font-size:.6rem; margin-left:2px; }
+.ct-divider { border:none; border-top:1px solid rgba(255,255,255,.08); margin:3px 0; }
+.ct-total { display:flex; justify-content:space-between; font-size:.68rem;
+            color:#94a3b8; font-weight:600; padding-top:2px; }
+.ct-sub-rows { padding-left:6px; margin-top:2px; margin-bottom:1px;
+               border-left:2px solid rgba(107,114,128,.3); }
+.ct-sub-row  { display:flex; justify-content:space-between; gap:6px;
+               font-size:.6rem; color:#94a3b8; padding:1px 0; }
+.ct-sub-row span:last-child { color:#cbd5e1; font-weight:500; white-space:nowrap; }
+.ct-src { font-size:.52rem; color:#475569; line-height:1.4;
+          border-top:1px solid rgba(255,255,255,.07); margin-top:4px; padding-top:3px; }
+.ct-src-lbl { color:#64748b; font-weight:700; display:block; margin-bottom:1px; }
+.ct-src-item { display:block; }
+
+/* ── Footnote ── */
+.footnote { font-size:.62rem; color:#888; line-height:1.6; padding:4px 4px; }
+.footnote strong { color:#555; }
+
+/* ── Area info ── */
+.area-info {
+  margin-top:6px; padding:6px 8px; background:#f8f5ef;
+  border-radius:6px; font-size:.64rem; color:#666; line-height:1.5;
+}
+.area-info strong { color:#555; }
+
+/* ── House detail: force single-column ── */
+#house-detail-info { padding:8px !important; font-size:.66rem !important; }
+#house-detail-info > div:last-child {
+  grid-template-columns:1fr !important; gap:6px !important;
+}
+#house-detail-info table { font-size:.6rem !important; }
+#house-detail-info table td:last-child { font-size:.55rem; word-break:break-word; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Rēzeknes iedzīvotāju dinamika</h1>
+  <p>Pilsētas demogrāfiskā attīstība no 1772. līdz 2017. gadam — iedzīvotāju skaits, etniskā un reliģiskā struktūra. Dati apkopoti no vairāk nekā 60 vēsturiskajiem avotiem. Autors: Andris Uškāns.</p>
+</div>
+
+<div class="card">
+  <div class="stats-row">
+    <div class="stat-card" style="--accent:#1a3a6b;cursor:pointer" onclick="highlightYear(1989)" title="Skatīt 1989. gadu grafikā"><div class="stat-value">42 477</div><div class="stat-label">Maksimālais iedzīvotāju skaits</div></div>
+    <div class="stat-card" style="--accent:#c0392b;cursor:pointer" onclick="highlightYear(1945)" title="Skatīt 1945. gadu grafikā"><div class="stat-value">200</div><div class="stat-label">Minimālais iedzīvotāju skaits</div></div>
+    <div class="stat-card" style="--accent:#2563eb;cursor:pointer" onclick="highlightYear(1989)" title="Skatīt 1989. gadu grafikā"><div class="stat-value">~38%</div><div class="stat-label">~38% latvieši (1989)</div></div>
+    <div class="stat-card" style="--accent:#7c3aed;cursor:pointer" onclick="highlightYear(1897)" title="Skatīt 1897. gadu grafikā"><div class="stat-value">~60%</div><div class="stat-label">~60% – ebreji (1897)</div></div>
+    <div class="stat-card" style="--accent:#059669;cursor:pointer" onclick="highlightYear(1784)" title="Skatīt 1784. gadu grafikā"><div class="stat-value">1784</div><div class="stat-label">1784. gads; pirmā iedzīvotāju uzskaite</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('pop')">📈 Iedzīvotāji</button>
+    <button class="tab-btn"        onclick="switchTab('eth')">🧑‍🤝‍🧑 Tautības</button>
+    <button class="tab-btn"        onclick="switchTab('rel')">⛪ Reliģiskās piederības</button>
+    <button class="tab-btn"        onclick="switchTab('soc')">🏛️ Sabiedrības slāņi</button>
+    <button class="tab-btn"        onclick="switchTab('house')">🏠 Mājokļi</button>
+    <button class="tab-btn"        onclick="switchTab('infra')">🏗️ Infrastruktūra</button>
+    <button class="tab-btn"        onclick="switchTab('compare')">📊 Latgales pilsētas</button>
+  </div>
+
+  <!-- ── TAB 1: Population ─────────────────────────────────────── -->
+  <div id="tab-pop" class="tab-panel active">
+    <div class="era-collapse-hdr" onclick="toggleEraTable()">
+      <span class="era-collapse-arrow" id="era-arrow">▶</span>
+      <span class="era-collapse-title">Vēstures periodi</span>
+    </div>
+    <div id="era-table-wrap">
+      <table class="era-table">
+        <thead><tr>
+          <th colspan="2">Laikmets</th>
+          <th>Gadi</th>
+          <th>Raksturojums</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="era-swatch-td" style="background:#b8d4ed"></span></td><td>Pilsētas pirmsākumi</td><td class="era-years">–1861</td><td>Apriņķa pilsētas veidošanās</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#a8d8a8"></span></td><td>Industrializācija</td><td class="era-years">1861–1914</td><td>Dzelzceļa ienākšana un strauja pilsētas attīstība</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#f4b8b8"></span></td><td>I Pasaules karš</td><td class="era-years">1914–1920</td><td>Bēgļi no Kurzemes, karadarbības sekas</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#f5dfa0"></span></td><td>Starpkaru periods</td><td class="era-years">1920–1940</td><td>Neatkarīgā Latvijas valsts, stabila izaugsme</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#f0a0a0"></span></td><td>II Pasaules karš</td><td class="era-years">1940–1945</td><td>Padomju un vācu okupāciju varā</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#d4b8e8"></span></td><td>Padomju Savienībā, Latvijas Republika</td><td class="era-years">1945–1991</td><td>Industrializācija, imigrācija</td></tr>
+          <tr><td><span class="era-swatch-td" style="background:#a8e8e0"></span></td><td>Pēc neatkarības atjaunošanas</td><td class="era-years">1991–</td><td>Pastāvīgs iedzīvotāju skaita samazinājums</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="controls">
+      <div>
+        <span style="font-size:.73rem;font-weight:700;color:#aaa;margin-right:.5rem">SKALA:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="btn-lin" onclick="setScale('linear')">Lineāra</button>
+          <button class="toggle-btn"        id="btn-log" onclick="setScale('logarithmic')">Logaritmiska</button>
+        </div>
+      </div>
+      <div class="chart-legend" style="margin:0">
+        <div class="legend-item selected" id="pop-leg-0" style="--lc:#1a3a6b;--lbg:#1a3a6b22;cursor:pointer" onclick="togglePop('Precīzi')"><div class="legend-line" style="background:#1a3a6b"></div>Precīzi dati</div>
+        <div class="legend-item selected" id="pop-leg-1" style="--lc:#e07b39;--lbg:#e07b3922;cursor:pointer" onclick="togglePop('Aptuveni')"><div class="legend-line legend-dashed"></div>Aptuveni (~) dati</div>
+      </div>
+      <div class="gender-toggles">
+        <button class="gender-toggle" id="pop-g-m" onclick="toggleGender('pop','m')">♂ Vīrieši</button>
+        <button class="gender-toggle" id="pop-g-f" onclick="toggleGender('pop','f')">♀ Sievietes</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="popChart"></canvas></div>
+    <div class="ct" id="popTip"></div>
+  </div>
+
+  <!-- ── TAB 2: Ethnicity ──────────────────────────────────────── -->
+  <div id="tab-eth" class="tab-panel">
+    <div class="controls">
+      <div>
+        <span style="font-size:.73rem;font-weight:700;color:#aaa;margin-right:.5rem">VĒRTĪBAS:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="eth-abs" onclick="setEthMode('abs')">Skaits</button>
+          <button class="toggle-btn"        id="eth-pct" onclick="setEthMode('pct')">%</button>
+        </div>
+      </div>
+      <button class="clear-btn" id="eth-clear" onclick="clearEthSel()">✕ Notīrīt izvēli</button>
+    </div>
+    <div class="view-hint" id="eth-hint">
+      📊 <span id="eth-hint-text">Noklikšķiniet uz leģendas, lai redzētu tautības dinamiku gadu griezumā.</span>
+    </div>
+    <div class="chart-legend" id="eth-legend"></div>
+    <div id="eth-bar-wrap" class="chart-wrap2"><canvas id="ethBarChart"></canvas></div>
+    <div id="eth-line-wrap" class="chart-wrap2" style="display:none"><canvas id="ethLineChart"></canvas></div>
+    <div class="ct" id="ethTip"></div>
+  </div>
+
+  <!-- ── TAB 3: Religion ───────────────────────────────────────── -->
+  <div id="tab-rel" class="tab-panel">
+    <div class="controls">
+      <div>
+        <span style="font-size:.73rem;font-weight:700;color:#aaa;margin-right:.5rem">VĒRTĪBAS:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="rel-abs" onclick="setRelMode('abs')">Skaits</button>
+          <button class="toggle-btn"        id="rel-pct" onclick="setRelMode('pct')">%</button>
+        </div>
+      </div>
+      <button class="clear-btn" id="rel-clear" onclick="clearRelSel()">✕ Notīrīt izvēli</button>
+      <div class="gender-toggles">
+        <button class="gender-toggle" id="rel-g-m" onclick="toggleGender('rel','m')">♂ Vīrieši</button>
+        <button class="gender-toggle" id="rel-g-f" onclick="toggleGender('rel','f')">♀ Sievietes</button>
+      </div>
+    </div>
+    <div class="view-hint" id="rel-hint">
+      📊 <span id="rel-hint-text">Noklikšķiniet uz leģendas, lai redzētu ticības dinamiku gadu griezumā.</span>
+    </div>
+    <div class="chart-legend" id="rel-legend"></div>
+    <div id="rel-bar-wrap" class="chart-wrap2"><canvas id="relBarChart"></canvas></div>
+    <div id="rel-line-wrap" class="chart-wrap2" style="display:none"><canvas id="relLineChart"></canvas></div>
+    <div class="ct" id="relTip"></div>
+  </div>
+
+  <!-- ── TAB 4: Social Class ───────────────────────────────────── -->
+  <div id="tab-soc" class="tab-panel">
+    <div class="controls">
+      <div>
+        <span style="font-size:.73rem;font-weight:700;color:#aaa;margin-right:.5rem">VĒRTĪBAS:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="soc-abs" onclick="setSocMode('abs')">Skaits</button>
+          <button class="toggle-btn"        id="soc-pct" onclick="setSocMode('pct')">%</button>
+        </div>
+      </div>
+      <button class="clear-btn" id="soc-clear" onclick="clearSocSel()">✕ Notīrīt izvēli</button>
+    </div>
+    <div class="view-hint" id="soc-hint">
+      📊 <span id="soc-hint-text">Noklikšķiniet uz leģendas, lai redzētu sabiedriskās kārtas dinamiku gadu griezumā.</span>
+    </div>
+    <div class="chart-legend" id="soc-legend"></div>
+    <div id="soc-bar-wrap" class="chart-wrap2"><canvas id="socBarChart"></canvas></div>
+    <div id="soc-line-wrap" class="chart-wrap2" style="display:none"><canvas id="socLineChart"></canvas></div>
+    <div class="ct" id="socTip"></div>
+  </div>
+
+  <!-- ── TAB 5: Houses ─────────────────────────────────────────── -->
+  <div id="tab-house" class="tab-panel">
+    <div class="controls">
+      <div>
+        <span style="font-size:.73rem;font-weight:700;color:#aaa;margin-right:.5rem">VĒRTĪBAS:</span>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="house-abs" onclick="setHouseMode('abs')">Skaits</button>
+          <button class="toggle-btn"        id="house-pct" onclick="setHouseMode('pct')">%</button>
+        </div>
+      </div>
+      <button class="clear-btn" id="house-clear" onclick="clearHouseSel()">✕ Notīrīt izvēli</button>
+    </div>
+    <div class="view-hint" id="house-hint">
+      📊 <span id="house-hint-text">Noklikšķiniet uz leģendas, lai redzētu māju skaita dinamiku gadu griezumā.</span>
+    </div>
+    <div class="chart-legend" id="house-legend"></div>
+    <div id="house-bar-wrap" class="chart-wrap2"><canvas id="houseBarChart"></canvas></div>
+    <div id="house-line-wrap" class="chart-wrap2" style="display:none"><canvas id="houseLineChart"></canvas></div>
+    <div class="ct" id="houseTip"></div>
+    <div id="house-detail-info" style="margin-top:1.2rem;padding:1rem 1.2rem;background:#f8f5ef;border-radius:12px;font-size:.76rem;color:#555;line-height:1.6">
+      <div style="font-size:.73rem;font-weight:700;color:#aaa;margin-bottom:.7rem;letter-spacing:.07em;text-transform:uppercase">Mājokļu raksturojums (no tautas skaitīšanām)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div style="background:#fff;border-radius:8px;padding:.8rem 1rem;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="font-weight:700;color:#1a3a6b;margin-bottom:.5rem;font-size:.82rem">2000. gada skaitīšana</div>
+          <table style="width:100%;border-collapse:collapse;font-size:.72rem">
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Apkure</td><td style="text-align:right;font-weight:600">centrālā 10 607 · krāsns 2 919 · cita 278</td></tr>
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Ūdensvads</td><td style="text-align:right;font-weight:600">ir 11 244 · nav 2 560</td></tr>
+            <tr><td style="padding:3px 0;color:#888">Vanna / duša</td><td style="text-align:right;font-weight:600">ir 10 241 · nav 3 563</td></tr>
+          </table>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:.8rem 1rem;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="font-weight:700;color:#1a3a6b;margin-bottom:.5rem;font-size:.82rem">2011. gada skaitīšana <span style="font-weight:400;color:#888;font-size:.72rem">· 13 414 apdzīvoti dzīvokļi</span></div>
+          <table style="width:100%;border-collapse:collapse;font-size:.72rem">
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Māju veidi</td><td style="text-align:right;font-weight:600">daudzdzīvokļu 10 822 · individuālās 1 909 · dvīņu 266 · 2 dz. 234 · rindu 50</td></tr>
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Celtniecības laiks</td><td style="text-align:right;font-weight:600">līdz 1918 — 187 · 1919–1945 — 713 · 1946–1960 — 2 068 · 1961–1980 — 6 152 · 1981–2000 — 4 095 · 2001–2011 — 113</td></tr>
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Apkure</td><td style="text-align:right;font-weight:600">centrālā 10 869 · krāsns 2 327 · cita 136</td></tr>
+            <tr style="border-bottom:1px solid #e8e4dc"><td style="padding:3px 0;color:#888">Ūdensvads</td><td style="text-align:right;font-weight:600">ir 12 190 · nav 1 142</td></tr>
+            <tr><td style="padding:3px 0;color:#888">Vanna / duša</td><td style="text-align:right;font-weight:600">ir 10 815 · nav 2 469</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 6: Infrastructure ─────────────────────────────────── -->
+  <div id="tab-infra" class="tab-panel">
+    <div class="chart-legend" id="infra-legend"></div>
+    <div class="chart-wrap2"><canvas id="infraChart"></canvas></div>
+    <div class="ct" id="infraTip"></div>
+    <div style="margin-top:1.5rem">
+      <div style="font-size:.73rem;font-weight:700;color:#aaa;margin-bottom:.6rem;letter-spacing:.07em;text-transform:uppercase">Pilsētas platības izmaiņas</div>
+      <div class="chart-wrap2" style="height:180px"><canvas id="areaChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── TAB 7: Comparison ─────────────────────────────────────── -->
+  <div id="tab-compare" class="tab-panel">
+    <div class="chart-legend" id="compare-legend"></div>
+    <div class="chart-wrap2"><canvas id="compareChart"></canvas></div>
+    <div class="ct" id="compareTip"></div>
+  </div>
+</div>
+
+<div class="footnote">
+  <strong>Tautības:</strong> Dati pieejami 10 gadu griezumos (1897–2017). "Citas" ietver baltkrievus, ukraiņus, romus u.c.
+  1943./1970./1979. g. pieejamas tikai procentuālās attiecības (nav iekļautas).&nbsp;|&nbsp;
+  <strong>Reliģija:</strong> Pieejami 19 gadu griezumi (1784–1935). Summa var nesakrist ar kopējo iedzīvotāju skaitu — avoti sniedz daļējas uzskaites.
+  1893. g. iespējami anomāls.
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// RESPONSIVE CHART DEFAULTS
+// ═══════════════════════════════════════════
+// Mobile-only: always set compact Chart defaults
+Chart.defaults.font.size = 8;
+Chart.defaults.plugins.legend.display = false;
+Chart.defaults.elements.point.radius = 2.5;
+Chart.defaults.elements.point.hoverRadius = 4;
+Chart.defaults.elements.line.borderWidth = 2;
+
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+
+const popConfirmed = [
+  {x:1772,y:106},{x:1779,y:878},{x:1784,y:1651},{x:1792,y:895},{x:1799,y:1218},
+  {x:1808,y:1614},{x:1825,y:205},{x:1833,y:745},{x:1836,y:1085},{x:1840,y:1091},
+  {x:1848,y:1340},{x:1857,y:1744},{x:1858,y:1739},{x:1859,y:1465},{x:1860,y:3100},
+  {x:1861,y:3078},{x:1862,y:3198},{x:1863,y:3371},{x:1864,y:5869},{x:1865,y:5989},
+  {x:1867,y:7306},{x:1869,y:7300},{x:1880,y:9408},{x:1883,y:10180},{x:1884,y:10349},
+  {x:1886,y:10518},{x:1888,y:12025},{x:1893,y:19096},{x:1894,y:10041},{x:1897,y:10738},
+  {x:1902,y:16855},{x:1903,y:11889},{x:1905,y:16842},{x:1910,y:19554},{x:1914,y:22800},
+  {x:1916,y:30000},{x:1920,y:9997},{x:1925,y:12620},{x:1930,y:12680},{x:1935,y:13139},
+  {x:1939,y:13300},{x:1941,y:7994},{x:1942,y:13329},{x:1943,y:11517},{x:1945,y:200},
+  {x:1959,y:21429},{x:1970,y:30803},{x:1973,y:33394},{x:1979,y:37225},{x:1981,y:38720},
+  {x:1989,y:42477},{x:2000,y:39233},{x:2011,y:32328},{x:2012,y:31067},{x:2013,y:30756},
+  {x:2014,y:29948},{x:2015,y:29317},{x:2017,y:28174}
+];
+const popApprox = [
+  {x:1944,y:6000},{x:1946,y:12000},{x:1956,y:18000},{x:1960,y:21400},
+  {x:1961,y:22500},{x:1962,y:23200},{x:1963,y:25000},{x:1964,y:25500},{x:1965,y:27200}
+];
+
+// Gender breakdown for population tooltip
+const popGender = {
+  1772:{m:49,f:57}, 1784:{m:838,f:823}, 1808:{m:852,f:762}, 1825:{m:90,f:115},
+  1833:{m:400,f:345}, 1836:{m:632,f:453}, 1840:{m:601,f:490}, 1858:{m:1075,f:674},
+  1859:{m:825,f:640}, 1861:{m:1809,f:1269}, 1862:{m:1930,f:1268}, 1863:{m:1584,f:1787},
+  1864:{m:2928,f:2941}, 1865:{m:3090,f:2899}, 1867:{m:3757,f:3549}, 1880:{m:4857,f:4551},
+  1883:{m:4930,f:5250}, 1886:{m:5369,f:5149}, 1888:{m:6370,f:5655}, 1897:{m:5042,f:5639},
+  1902:{m:7818,f:9037}, 1903:{m:5665,f:6224}, 1905:{m:7812,f:9030}, 1910:{m:9213,f:10341},
+  1925:{m:6162,f:6458}, 1930:{m:6134,f:6546}, 1935:{m:6477,f:6662}, 1941:{m:3728,f:4266},
+  1942:{m:6525,f:6804}, 1943:{m:5752,f:5765}, 1989:{m:19662,f:22815}, 2000:{m:17858,f:21375},
+  2011:{m:14465,f:17863}, 2014:{m:13315,f:16633}, 2015:{m:13009,f:16308}, 2017:{m:12419,f:15755}
+};
+
+// Area data for population tooltip
+const areaData = [
+  {x:1784,y:42.58}, {x:1910,y:477}, {x:1920,y:477.66}, {x:1936,y:806},
+  {x:1939,y:806}, {x:1965,y:1622}, {x:2013,y:1800}
+];
+
+const popNotes = {
+  1772:'Pirmā uzticamā iedzīvotāju uzskaite — LVVA arhīvs.',
+  1825:'Neizskaidrojams kritums — iespējams atšķirīga uzskaites metodika.',
+  1860:'🚂 Dzelzceļa savienojums ar Sanktpēterburgu.',
+  1893:'⚠️ Iespējams anomāls skaitlis — var ietvert garnizonu.',
+  1916:'Kara laika maksimums — pilsētā bēgļi no frontēm.',
+  1920:'🏛️ Rēzekne atgūta Latvijas Neatkarības karā.',
+  1941:'Vācu okupācija. 1. aprīlī 9984, 1. augustā 7994.',
+  1945:'💥 Kara beigas — pilsēta gandrīz iznīcināta. Tikai 200 iedzīvotāji.',
+  1989:'📈 Visu laiku rekords: 42 477.',
+  2017:'Iedzīvotāju skaits turpina samazināties.'
+};
+
+// ── Sources (from cell comments in demogrāfija.xlsx) ──────────────
+const srcByYear = {
+  1772: ["LVVA, 1881.f., 1.apr., 8.lieta, 577.–588. lpp."],
+  1779: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107"],
+  1784: ["Brežgo. Latgolas inventari un generalmēreišonas zem'u aproksti 1695.–1784. Daugavpils: V. Loča izdevnīceiba. 1943, 148, 149"],
+  1792: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107"],
+  1799: ["Brežgo, B. Rēzeknes pilsētas teritorija XVI–XVIII g.s. Latgales vēstnesis. Nr. 60, 02.06.1939"],
+  1808: ["Сапунов А. Витебская старина. Т. 1. Витебск. 1883, сc. 433, 436"],
+  1825: ["Статистическое изображение городов Российской империи по 1825 год. СПб. 1829, c. 64"],
+  1833: ["Обозрение состояния городов Российской империи в 1833 году. СПб. 1834, cc. 56, 57","Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 124"],
+  1836: ["Годовой отчет полиции о состоянии гор. Режицы за 1836 год. LgKM 766/I-PLG"],
+  1840: ["Статистические таблицы о состоянии городов Российской империи. СПб. 1842, cc. 4–5"],
+  1848: ["Военно-статистическое обозрение Российской Империи, Т. 8, Ч. 1. СПб. 1852, c. 206"],
+  1857: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107"],
+  1858: ["Городские поселения в Российской Империи. Т. 1. СПб. 1860, 251"],
+  1859: ["Сведения о населенных местах Витебской губернии. 1859, РГИА 1290-4-85"],
+  1860: ["Памятная книжка Витебской губернии на 1861 год. Витебск. 1861, c. 24"],
+  1861: ["Памятная книжка Витебской губернии на 1862 год. Витебск. 1862"],
+  1862: ["Памятная книжка Витебской губернии на 1864 год. Витебск. 1864, c. 169, 170, 199, 203, 247"],
+  1863: ["Памятная книжка Витебской губернии на 1865 год. Витебск. 1865, c. 279, 283, 289, 311"],
+  1864: ["Памятная книжка Витебской губернии на 1866 год. Витебск. 1866, c. 129–199"],
+  1865: ["Памятная книжка Витебской губернии на 1867 год. Витебск. 1867, c. 274–314"],
+  1867: ["Семенов-Тян-Шанский П.П. Географическо-статистический словарь Российской империи. СПб. 1873, с. 363a"],
+  1869: ["Семенов-Тян-Шанский П.П. Географическо-статистический словарь Российской империи. СПб. 1873, с. 363a","Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107"],
+  1880: ["Памятная книжка Витебской губернии на 1881 год. Витебск. 1881, c. 120, 123, 139"],
+  1883: ["Памятная книжка Витебской губернии на 1885 год. Витебск. 1885, c. 158–169"],
+  1884: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107"],
+  1886: ["Памятная книжка Витебской губернии на 1886 год. Витебск. 1886, c. 36, 61, 170","Памятная книжка Витебской губернии на 1888 год. Витебск. 1888, c. 180"],
+  1888: ["Витебская губерния — историко-географический и статистический обзор. Витебск. 1890"],
+  1893: ["Памятная книжка Витебской губернии на 1895 год. Витебск. 1895, c. 201, 213","Романовъ Е.Р. Общий очерк Витебской губернии. Витебск. 1898, cc. 45, 47"],
+  1894: ["Avots nozaudēts, iespējams — Памятная книжка Витebской губернии"],
+  1897: ["Первая Всеобщая перепись населения Российской Империи 1897 года. V. Витебская губерния. Тетрадь 2, 3. СПб. 1901, 1903.","Памятная книжка Витебской губернии на 1904 год. Витебск. 1904, c. 102","Список населенных мест Витебской губернии. Витебск. 1906, XII"],
+  1902: ["Памятная книжка Витебской губернии на 1904 год. Витебск. 1904, c. 102"],
+  1903: ["Памятная книжка Витебской губернии на 1904 год. Витебск. 1904, c. 102"],
+  1905: ["Список населенных мест Витебской губернии. Витебск. 1906, XIII–XV","Sudrabs P. Rēzekne pagātnē un tagadnē. Rēzekne: Tipogrāfija „Darbs un Zinība\". 1935"],
+  1910: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107","Скворцов И. Вся Режица. 1910 (LgKM 4591)","Города России въ 1910 году. СПб. 1914, 75"],
+  1914: ["Никонов, В. Резекне. Очерки истории... Рига: Зинатне. 2000, c. 107","Rutkis, J. Latvijas ģeografija. Stockholm: Apgāds Zemgale. 1960, lpp. 277"],
+  1916: ["Никонов, В. Резекне. Очерки истории с древнейших времен до апреля 1917 года. Рига: Зинатне. 2000, c. 107"],
+  1920: ["Skujenieks, M. Latvija. Zeme un iedzīvotāji. Rīga: Valsts statistiskās pārvalde. 1922, lpp. 87, 185","Latvijas statistiskā gadagrāmata 1920. Rīga: Valsts Statistiskā Pārvalde. 1921, lpp. 7, 16, 71"],
+  1925: ["Skujenieks, M. Otrā tautas skaitīšana. I; II. Tautība un ticība. Rīga: Leta. 1925","Skujenieks, M. Otrā tautas skaitīšana. V. Nodarbošanās. Rīga: Leta. 1928"],
+  1930: ["Skujenieks, M. Trešā tautas skaitīšana Latvijā 1930. gadā. I; III. Rīga: Valsts Statistiskā pārvalde. 1930","Maldups, A. Valsts adresu kalendars 1940. Rīga: Valsts statistiskā pārvalde. 1940"],
+  1935: ["Salnais, V., Maldups, A. Pilsētu apraksti. Otrā daļa. Rīga. 1936, lp. 17","Salnītis, V., Skujenieks, M. Ceturtā tautas skaitīšana Latvijā 1935. gadā. Rīga. 1939"],
+  1939: ["Latvijas PSR statistikas tabulas. 1940. g. Rīga: Latvijas PSR Tautsaimniecības statistikas pārvalde. 1940"],
+  1941: ["Statistische Berichte für das Ostland. Nr. 3/4. Riga: Reichskommissar für das Ostland. 1942, s. 91"],
+  1942: ["Statistische Berichte für das Ostland. Nr. 1/4. Riga: Reichskommissar für das Ostland. 1943, s. 90"],
+  1943: ["Šķirmants, J. Rēzekne. Latgolas piļsātas. Minhene. 1978, lpp. 112–144","Statistische Berichte für das Ostland. Nr. 1/4. Riga: Reichskommissar für das Ostland. 1943, s. 92"],
+  1944: ["Воронов Н., Викманис К. Пояснительная записка к схеме генерального проекта планировки г. Резекне. Рига. 1945. LKM 14525"],
+  1945: ["Воронов Н., Викманис К. Пояснительная записка к схеме генерального проекта планировки г. Резекне. Рига. 1945. LKM 14525"],
+  1946: ["Воронов Н., Викманис К. Пояснительная записка к схеме генерального проекта планировки г. Резекне. Рига. 1945. LKM 14525"],
+  1956: ["Rutkis, J. Latvijas ģeografija. Stockholm: Apgāds Zemgale. 1960, lp. 281"],
+  1959: ["Riekstiņš, J. Migrantu kolonizācija Latvijā. Totalitārie režīmi... Rīga: LVI apgāds. 2001, lpp. 690–691"],
+  1960: ["LVA 1345. f., 9. apr., 1852. l., 32. lp."],
+  1961: ["LVA 1345. f., 9. apr., 1852. l., 32. lp."],
+  1962: ["LVA 1345. f., 9. apr., 1852. l., 32. lp."],
+  1963: ["Rēzekne. Pa Latgales ezeriem un upēm. Rīga: Latvijas Valsts Izdevniecība. 1963"],
+  1964: ["Padomju Latvija skaitļos. red. Pankins, E. Rīga: Statistika. 1965"],
+  1965: ["LVA 1345. f., 9. apr., 1852. l., 32.–33. lp."],
+  1970: ["1989. gada tautas skaitīšanas rezultāti Latvijā. Rīga: LR statistikas komiteja. 1992, lp. 50"],
+  1973: ["1970. gada Vissavienības skaitīšanas rezultāti Latvijas PSR. Rīga: Centrālā statistikas pārvalde. 1974, lp. 21"],
+  1979: ["1989. gada tautas skaitīšanas rezultāti Latvijā. Rīga: LR statistikas komiteja. 1992, lp. 50"],
+  1981: ["Итоги Всесоюзной переписи населения 1979 года по Латвийской ССР. Рига: ЦСУ Латв. ССР. 1982, c. 14"],
+  1989: ["1989. gada tautas skaitīšanas rezultāti Latvijā. Rīga: LR statistikas komiteja. 1992, lpp. 41, 103","1989. gada Vissavienības tautas skaitīšanas rezultāti Latvijas PSR. Rīga: LR Valsts statistikas komiteja. 1990, lpp. 115"],
+  2000: ["2000. gada tautas skaitīšanas rezultāti. Rīga: Centrālā statistikas pārvalde. 2002, lpp. 11","Latvijas 2011. gada tautas skaitīšanas rezultāti. Rīga: CSP. 2016, lp. 193, 204"],
+  2011: ["Latvijas 2011. gada tautas skaitīšanas rezultāti. Rīga: CSP. 2016, lpp. 28, 87, 89, 108, 191–204"],
+  2012: ["Latvijas statistikas gadagrāmata 2013. Rīga: CSP. 2014, lp. 106"],
+  2013: ["Latvijas statistikas gadagrāmata 2013. Rīga: CSP. 2014, lpp. 106, 115"],
+  2014: ["Latvijas statistikas gadagrāmata 2014. Rīga: CSP. 2015, lpp. 89"],
+  2015: ["Latvijas statistikas gadagrāmata 2015. Rīga: CSP. 2016, lpp. 99"],
+  2017: ["Latvijas statistikas gadagrāmata 2017. Rīga: CSP. 2018, lpp. 103, 119, 130"],
+};
+function fmtSrc(yr) {
+  const srcs = srcByYear[yr];
+  if (!srcs || !srcs.length) return '';
+  const items = srcs.map(s => `<span class="ct-src-item">${s}</span>`).join('');
+  return `<div class="ct-src"><span class="ct-src-lbl">Avots:</span>${items}</div>`;
+}
+
+// Ethnicity
+const ethYears = [1897,1920,1925,1935,1959,1989,2000,2011,2013,2017];
+const ethTotal  = [10738,9997,12620,13139,21429,42477,39233,32328,30756,28174];
+const ethGroups = [
+  {label:'Latvieši',       color:'#2563EB', data:[828,  1924, 4348, 5775, 6537,  15839,16710,15183,14144,13028]},
+  {label:'Krievi',         color:'#DC2626', data:[2527, 2469, 3034, 2602, 12434, 23379,19873,15030,13846,12301]},
+  {label:'Ebreji',         color:'#7C3AED', data:[6442, 4148, 3911, 3342, 458,   211,  107,  null, null, null ]},
+  {label:'Poļi',           color:'#D97706', data:[895,  1231, 1112, 909,  1098,  1166, 1056, 795,  742,  650  ]},
+  {label:'Citas tautības', color:'#6B7280', data:[12,   157,  89,   425,  842,   1745, 1366, 1232, 1960, 2142 ]},
+  {label:'Vācieši',        color:'#059669', data:[61,   30,   94,   68,   null,  35,   37,   23,   null, null ]},
+  {label:'Lietuvieši',     color:'#EC4899', data:[3,    38,   32,   18,   60,    102,  84,   65,   64,   53   ]},
+];
+// Sub-breakdown of "Citas tautības" (from cell comments in demogrāfija.xlsx)
+const ethCitasBreakdown = {
+  1920: [{l:'Baltkrievi',v:126},{l:'Igauņi',v:5},{l:'Citi',v:26}],
+  1925: [{l:'Baltkrievi',v:38},{l:'Igauņi',v:9},{l:'Pārējie',v:40},{l:'Nezināmi',v:2}],
+  1935: [{l:'Baltkrievi',v:360},{l:'Igauņi',v:9},{l:'Nezināmi',v:56}],
+  1959: [{l:'Ukraiņi',v:383},{l:'Baltkrievi',v:345},{l:'Igauņi',v:19},{l:'Citi',v:95}],
+  1989: [{l:'Baltkrievi',v:862},{l:'Ukraiņi',v:673},{l:'Tatāri',v:32},{l:'Igauņi',v:16},{l:'Čigāni',v:14},{l:'Citi',v:148}],
+  2000: [{l:'Baltkrievi',v:680},{l:'Ukraiņi',v:494},{l:'Tatāri',v:27},{l:'Igauņi',v:19},{l:'Čigāni',v:17},{l:'Citi',v:129}],
+  2011: [{l:'Baltkrievi',v:489},{l:'Ukraiņi',v:378},{l:'Čigāni',v:24},{l:'Igauņi',v:13},{l:'Citi',v:328}],
+  2013: [{l:'Baltkrievi',v:471},{l:'Ukraiņi',v:390},{l:'Citi',v:1099}],
+  2017: [{l:'Baltkrievi',v:425},{l:'Ukraiņi',v:348},{l:'Citi',v:1369}],
+};
+
+const ethNotes = {
+  1897:'Krievijas impērijas 1897. g. tautas skaitīšana. Ebreji veido 60% iedzīvotāju.',
+  1920:'Pēc Neatkarības kara — ebreju kopiena samazinājusies par ~40%.',
+  1935:'Latvieši kļūst par lielāko grupu — 44% no iedzīvotājiem.',
+  1959:'Padomju kolonizācija — krievu īpatsvars pieaudzis no 26% (1897) uz 58%.',
+  1989:'Krievu skaits sasniedz maksimumu — 55% no iedzīvotājiem.',
+  2000:'Latvieši pārsniedz Krievu skaitu pirmo reizi kopš 1897. g.',
+  2011:'Latvieši un Krievi gandrīz vienādā daudzumā.',
+};
+
+// Religion
+const relYears = [1784,1808,1848,1861,1862,1863,1864,1865,1867,1883,1886,1893,1897,1905,1910,1920,1925,1930,1935];
+const relTotal  = [1651,1614,1340,3078,3198,3371,5869,5989,7306,10180,10518,19096,10738,16842,19554,9997,12620,12680,13139];
+const relGroups = [
+  {label:'Jūdaisti',       color:'#7C3AED', data:[1177,1077,887, 1250,1153,1731,2868,2871,2902,7216,7282,10639,6478,7254,8898,4129,3909,3555,3342]},
+  {label:'Katoļi',         color:'#DC2626', data:[97,  468, 363, 917, 752, 643, 1140,743, 1156,799, 793, 4590, 1939,5821,7149,2794,4116,4320,4795]},
+  {label:'Vecticībnieki',  color:'#D97706', data:[366, null,172, 297, 590, 649, 1051,1024,913, 1468,1595,2707, 1552,2530,3316,1714,1957,1983,1992]},
+  {label:'Pareizticīgie',  color:'#2563EB', data:[null,null,80,  576, 703, 310, 786, 995, 2335,598, 772, 980,  677, 977, 1115,879, 1232,1309,1297]},
+  {label:'Luterāņi',       color:'#059669', data:[null,null,10,  38,  0,   38,  24,  20,  null,76,  62,  null, 121, 260, 115, 454, 1349,1415,1641]},
+  {label:'Vienticībnieki', color:'#F59E0B', data:[null,null,null,null,null,null,null,null,null,21,  13,  32,   null,0,   null,null,null,null,null]},
+  {label:'Musulmaņi',      color:'#10B981', data:[null,null,null,null,null,null,null,null,null,2,   1,   null, null,0,   7,   null,null,null,null]},
+];
+const relNotes = {
+  1784:'Ģenerālmēreišanas dati — jūdaisti veido 71% iedzīvotāju.',
+  1867:'Krievu ortodokso straujs pieaugums — dzelzceļa darbinieki.',
+  1883:'Jūdaisti joprojām lielākā reliģiskā grupa (71%).',
+  1893:'Iespējams anomāls gads — dati var ietvert garnizonu.',
+  1905:'Katoļu skaits strauji pieaug — urbanizācija no laukiem.',
+  1920:'Pēc kara jūdaistu kopiena samazinājusies uz pusi.',
+  1925:'Luterāņi pieauguši 3× salīdzinājumā ar 1920. g.',
+};
+
+// Social Class (Sabiedriskās kārtas)
+const socYears = [1836, 1848, 1862, 1863, 1864, 1865, 1886, 1893, 1897, 1902];
+const socTotal = [1091, 1340, 3198, 3371, 5869, 5989, 10518, 19096, 10738, 16855];
+const socGroups = [
+  {label:'Sīkpilsoņi',   color:'#3B82F6', data:[762,  1206, 2260, 2144, 4384, 3940, 8579,  16000, 7909, 11975]},
+  {label:'Zemnieki',     color:'#10B981', data:[0,    23,   0,    238,  395,  248,  577,   900,   2110, 2633 ]},
+  {label:'Karavīri',     color:'#EF4444', data:[290,  35,   440,  277,  533,  1296, 515,   1422,  null, 1477 ]},
+  {label:'Tirgotāji',    color:'#F59E0B', data:[8,    8,    175,  206,  222,  256,  309,   364,   273,  381  ]},
+  {label:'Muižnieki',    color:'#8B5CF6', data:[56,   39,   147,  352,  325,  153,  327,   128,   259,  110  ]},
+  {label:'Garīdznieki',  color:'#F97316', data:[11,   9,    29,   12,   7,    6,    42,    46,    23,   12   ]},
+  {label:'Goda pilsoņi', color:'#EC4899', data:[10,   null, 14,   null, 0,    0,    49,    59,    null, 230  ]},
+  {label:'Citas kārtas', color:'#6B7280', data:[15,   null, 131,  34,   3,    16,   20,    58,    194,  37   ]},
+];
+const socNotes = {
+  1836: 'Pirmā pilnīgā šķiru uzskaite. Sīkpilsoņi (мещане) — lielākā kārta.',
+  1865: 'Karavīru skaits kāpj līdz 1296 — dzelzceļa garnizona ietekme.',
+  1893: 'Iespējams anomāls gads — sīkpilsoņu skaits 16 000 (sk. iedzīvotāju grafiku).',
+  1897: 'Krievijas impērijas tautas skaitīšana — dati pēc kārtas.',
+};
+
+// Houses (Mājokļi)
+const houseYears = [1590,1599,1712,1738,1765,1772,1784,1799,1808,1825,1833,1836,1840,1848,1860,1862,1865,1869,1905,1910,1920,1935];
+const houseTotal = [14,  25,  27,  22,  15,  12,  105, 92,  104, 90,  173, 313, 336, 358, 452, 514, 688, 927, 2072,1100,1647,1990];
+const houseGroups = [
+  {label:'Koka',   color:'#92400E', data:[14,  25,  27,  22,  15,  12,  104, 89,  102, 88,  170, 310, 333, 355, 435, 493, 670, 908, 1765,880, 1441,1703]},
+  {label:'Mūra',   color:'#94A3B8', data:[null,null,null,null,null,null,1,   3,   2,   2,   3,   3,   3,   3,   17,  21,  18,  19,  307, 220, 148, 208 ]},
+  {label:'Jaukta', color:'#D97706', data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,48,  79  ]},
+];
+const houseNotes = {
+  1590: 'Pirmās ziņas par ēkām — 14 koka mājas/sētas.',
+  1784: 'Generālmēreišana: 104 koka un 1 mūra māja.',
+  1860: 'Dzelzceļš ienāk — sākas strauja pilsētas izaugsme.',
+  1905: 'Koka māju skaits aptuvens — kopā 2072 atņemot 307 mūra mājas.',
+  1910: 'Pēc citiem datiem kopā var būt ~2500 mājas.',
+  1920: 'Pēc Pirmā pasaules kara: 25 mājas nopostītas, 86 daļēji bojātas.',
+};
+
+// Infrastructure
+const infraGroups = [
+  {label:'Bodes / veikali',    color:'#F59E0B',
+   data:[{x:1799,y:32},{x:1833,y:20},{x:1836,y:34},{x:1840,y:34}]},
+  {label:'Krogi',              color:'#DC2626',
+   data:[{x:1712,y:1},{x:1738,y:2},{x:1765,y:2},{x:1825,y:8},{x:1833,y:8},{x:1836,y:5},{x:1840,y:5},{x:1910,y:16}]},
+  {label:'Mācību iestādes',    color:'#2563EB',
+   data:[{x:1836,y:0},{x:1840,y:0},{x:1860,y:3},{x:1865,y:4},{x:1910,y:14}]},
+  {label:'Ražošanas uzņēmumi', color:'#059669',
+   data:[{x:1836,y:0},{x:1840,y:0},{x:1865,y:9},{x:1869,y:7},{x:1883,y:6},{x:1886,y:4},{x:1893,y:6},{x:1910,y:2}]},
+  {label:'Sociālās aprūpes iestādes', color:'#7C3AED',
+   data:[{x:1825,y:1},{x:1836,y:2},{x:1840,y:2},{x:1863,y:1},{x:1886,y:2}]},
+];
+const infraNotes = {
+  1836: 'Pirmā aptverošā infrastruktūras uzskaite.',
+  1860: 'Dzelzceļš ienāk — mācību iestādes un ražošana aug.',
+  1910: 'Pilsētas uzplaukums: 16 krogi, 14 skolas.',
+};
+
+// Religion gender breakdown
+const relGender = {
+  1784: {'Jūdaisti':{m:547,f:630},'Katoļi':{m:44,f:53},'Vecticībnieki':{m:241,f:125}},
+  1808: {'Jūdaisti':{m:535,f:546}},
+  1848: {'Jūdaisti':{m:410,f:477},'Katoļi':{m:175,f:188},'Luterāņi':{m:4,f:6}},
+  1861: {'Jūdaisti':{m:708,f:542},'Katoļi':{m:557,f:360},'Vecticībnieki':{m:179,f:118},'Pareizticīgie':{m:346,f:230},'Luterāņi':{m:19,f:19}},
+  1862: {'Jūdaisti':{m:649,f:504},'Katoļi':{m:435,f:317},'Vecticībnieki':{m:399,f:191},'Pareizticīgie':{m:447,f:256}},
+  1863: {'Jūdaisti':{m:774,f:957},'Katoļi':{m:297,f:346},'Vecticībnieki':{m:292,f:357},'Pareizticīgie':{m:205,f:105},'Luterāņi':{m:16,f:22}},
+  1864: {'Jūdaisti':{m:1361,f:1507},'Katoļi':{m:570,f:570},'Vecticībnieki':{m:413,f:638},'Pareizticīgie':{m:574,f:212},'Luterāņi':{m:10,f:14}},
+  1865: {'Jūdaisti':{m:1392,f:1479},'Katoļi':{m:347,f:396},'Vecticībnieki':{m:445,f:579},'Pareizticīgie':{m:745,f:250},'Luterāņi':{m:8,f:12}},
+  1870: {'Jūdaisti':{m:1449,f:1474}},
+  1880: {'Vecticībnieki':{m:1624,f:1621}},
+  1883: {'Jūdaisti':{m:3463,f:3753},'Katoļi':{m:410,f:389},'Vecticībnieki':{m:720,f:748},'Pareizticīgie':{m:290,f:308},'Luterāņi':{m:36,f:40},'Vienticībnieki':{m:10,f:11},'Musulmaņi':{m:1,f:1}},
+  1886: {'Jūdaisti':{m:3668,f:3614},'Katoļi':{m:438,f:355},'Vecticībnieki':{m:805,f:790},'Pareizticīgie':{m:419,f:353},'Luterāņi':{m:33,f:29},'Vienticībnieki':{m:5,f:8},'Musulmaņi':{m:1,f:0}},
+  1897: {'Jūdaisti':{m:3017,f:3461},'Katoļi':{m:877,f:1062},'Vecticībnieki':{m:739,f:813},'Pareizticīgie':{m:351,f:326},'Luterāņi':{m:64,f:57}},
+  1905: {'Jūdaisti':{m:3353,f:3901},'Katoļi':{m:2583,f:3238},'Vecticībnieki':{m:1332,f:1198},'Pareizticīgie':{m:431,f:546},'Luterāņi':{m:113,f:147}},
+};
+
+// Housing detail comments (from Excel cell comments)
+const housingDetails = {
+  2000: {
+    title:'Dzīvokļu raksturojums (2000)',
+    rows:[
+      {cat:'Apkure',items:[{l:'Centrālā',v:10607},{l:'Krāsns',v:2919},{l:'Cita',v:278}]},
+      {cat:'Ūdensvads',items:[{l:'Ir',v:11244},{l:'Nav',v:2560}]},
+      {cat:'Vanna/duša',items:[{l:'Ir',v:10241},{l:'Nav',v:3563}]}
+    ]
+  },
+  2011: {
+    title:'Dzīvokļu raksturojums (2011)',
+    rows:[
+      {cat:'Māju veids',items:[{l:'Individuālās',v:1909},{l:'Divu dzīvokļu',v:234},{l:'Dvīņu',v:266},{l:'Rindu',v:50},{l:'Daudzdzīvokļu',v:10822}]},
+      {cat:'Celtniecības laiks',items:[{l:'līdz 1918',v:187},{l:'1919–1945',v:713},{l:'1946–1960',v:2068},{l:'1961–1980',v:6152},{l:'1981–2000',v:4095},{l:'2001–2011',v:113}]},
+      {cat:'Apkure',items:[{l:'Centrālā',v:10869},{l:'Krāsns',v:2327},{l:'Cita',v:136}]},
+      {cat:'Ūdensvads',items:[{l:'Ir',v:12190},{l:'Nav',v:1142}]},
+      {cat:'Vanna/duša',items:[{l:'Ir',v:10815},{l:'Nav',v:2469}]}
+    ]
+  }
+};
+
+// Comparative data — Latgale cities (1808–1897)
+// NOTE: Swapped rezekne↔daugavpils labels per data correction
+const compareData = [
+  {x:1808, daugavpils:2369, ludza:1955, rezekne:1578},
+  {x:1825, daugavpils:2885, ludza:1985, rezekne:208},
+  {x:1833, daugavpils:6261, ludza:1415, rezekne:745},
+  {x:1840, daugavpils:11361, ludza:4414, rezekne:1091},
+  {x:1848, daugavpils:9659, ludza:2354, rezekne:1340},
+  {x:1863, daugavpils:27825, ludza:3234, rezekne:3371},
+  {x:1864, daugavpils:33124, ludza:3521, rezekne:5869},
+  {x:1867, daugavpils:null, ludza:5460, rezekne:7306},
+  {x:1894, daugavpils:null, ludza:6151, rezekne:10041},
+  {x:1897, daugavpils:72231, ludza:3929, rezekne:10681}
+];
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+const fmtN = n => n==null ? '—' : Math.round(n).toLocaleString('lv-LV');
+const fmtP = (n,t) => n==null||!t ? '—' : (n/t*100).toFixed(1)+'%';
+
+// Bottom-sheet tooltip for mobile
+let activeTip = null;
+function positionTip(tip, caretX, caretY, chart) {
+  // Show as bottom sheet — just add visible class
+  tip.classList.add('visible');
+  activeTip = tip;
+}
+// Dismiss tooltip on tap outside chart area
+document.addEventListener('touchstart', function(e) {
+  if (activeTip && !activeTip.contains(e.target)) {
+    activeTip.classList.remove('visible');
+    activeTip = null;
+  }
+}, {passive:true});
+
+// ═══════════════════════════════════════════
+// POPULATION CHART
+// ═══════════════════════════════════════════
+const eras = [
+  {start:1772,end:1861,color:'rgba(130,180,230,.18)'},{start:1861,end:1914,color:'rgba(100,200,100,.15)'},
+  {start:1914,end:1920,color:'rgba(230,100,100,.18)'},{start:1920,end:1940,color:'rgba(240,200,60,.15)'},
+  {start:1940,end:1945,color:'rgba(210,50,50,.18)'}, {start:1945,end:1991,color:'rgba(180,100,230,.13)'},
+  {start:1991,end:2020,color:'rgba(60,200,190,.13)'},
+];
+const keyEvents = [
+  {x:1860,label:'Dzelzceļa ienākšna',       color:'rgba(40,140,40,.65)'},
+  {x:1920,label:'Lielinieku padzīšana',      color:'rgba(180,140,0,.65)'},
+  {x:1940,label:'Okupācija',                 color:'rgba(180,40,40,.65)'},
+  {x:1945,label:'Otrā pasaules kara beigas', color:'rgba(180,40,40,.8)'},
+  {x:1989,label:'Iedzīvotāju maksimums',     color:'rgba(26,58,107,.65)'},
+];
+let highlightedYear = null;
+const highlightPlugin = {
+  id:'highlightYear',
+  afterDraw(chart){
+    const {ctx,chartArea,scales}=chart;
+    if(!chartArea||!scales.x||highlightedYear===null) return;
+    const px=scales.x.getPixelForValue(highlightedYear);
+    if(px<chartArea.left||px>chartArea.right) return;
+    ctx.save();
+    ctx.fillStyle='rgba(255,200,50,.20)';
+    ctx.fillRect(px-10,chartArea.top,20,chartArea.bottom-chartArea.top);
+    ctx.strokeStyle='rgba(200,140,0,.85)';
+    ctx.lineWidth=2.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px,chartArea.top); ctx.lineTo(px,chartArea.bottom); ctx.stroke();
+    ctx.restore();
+  }
+};
+
+const eraBandsPlugin = {
+  id:'eraBands', beforeDraw(chart){
+    const {ctx,chartArea,scales}=chart;
+    if(!chartArea||!scales.x) return;
+    ctx.save();
+    eras.forEach(e=>{
+      const x1=Math.max(scales.x.getPixelForValue(e.start),chartArea.left);
+      const x2=Math.min(scales.x.getPixelForValue(e.end),chartArea.right);
+      if(x2<=x1) return;
+      ctx.fillStyle=e.color;
+      ctx.fillRect(x1,chartArea.top,x2-x1,chartArea.bottom-chartArea.top);
+    });
+    ctx.restore();
+  }
+};
+const eventLinesPlugin = {
+  id:'eventLines', afterDraw(chart){
+    const {ctx,chartArea,scales}=chart;
+    if(!chartArea||!scales.x) return;
+    ctx.save();
+    keyEvents.forEach(e=>{
+      const px=scales.x.getPixelForValue(e.x);
+      if(px<chartArea.left||px>chartArea.right) return;
+      ctx.strokeStyle=e.color; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(px,chartArea.top); ctx.lineTo(px,chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      // Skip text labels on mobile — too crowded
+    });
+    ctx.restore();
+  }
+};
+
+const popChart = new Chart(document.getElementById('popChart'), {
+  type:'scatter',
+  data:{datasets:[
+    {label:'Precīzi', data:popConfirmed, showLine:true, borderColor:'#1a3a6b', backgroundColor:'#1a3a6b',
+     borderWidth:2.5, pointRadius:4, pointHoverRadius:7, pointBorderColor:'#fff', pointBorderWidth:1.5, tension:.2},
+    {label:'Aptuveni',data:popApprox, showLine:true, borderColor:'#e07b39', backgroundColor:'#e07b39',
+     borderWidth:2, borderDash:[6,4], pointStyle:'triangle', pointRadius:5, pointHoverRadius:7,
+     pointBorderColor:'#fff', pointBorderWidth:1.5, tension:.2}
+  ]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    animation:{duration:800,easing:'easeInOutQuart'},
+    interaction:{mode:'nearest',axis:'x',intersect:false},
+    plugins:{legend:{display:false}, tooltip:{enabled:false, external(ctx){
+      const tip=document.getElementById('popTip');
+      if(ctx.tooltip.opacity===0){tip.classList.remove('visible');return;}
+      const dp=ctx.tooltip.dataPoints[0]; if(!dp) return;
+      const yr=dp.raw.x, pop=dp.raw.y;
+      const isApprox=dp.dataset.label==='Aptuveni';
+      const note=popNotes[yr];
+      let genderRow = '';
+      if (popGender[yr] && popGender[yr].m && popGender[yr].f) {
+        const g = popGender[yr];
+        const tot = g.m + g.f;
+        const pctM = (g.m / tot * 100).toFixed(1);
+        const pctF = (g.f / tot * 100).toFixed(1);
+        genderRow = `<div class="ct-sub">♂ Vīrieši: ${fmtN(g.m)} (${pctM}%)  |  ♀ Sievietes: ${fmtN(g.f)} (${pctF}%)</div>`;
+      }
+      tip.innerHTML=`<div class="ct-year">${yr}. gads</div>
+        <div class="ct-main">${fmtN(pop)} <span style="font-size:.78rem;font-weight:500;color:#94a3b8">iedzīvotāji</span></div>
+        ${genderRow}
+        ${isApprox?'<div class="ct-sub">~ Aptuvens skaitlis</div>':''}
+        ${note?`<div class="ct-note">${note}</div>`:''}
+        ${fmtSrc(yr)}`;
+      positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+    }}},
+    scales:{
+      x:{type:'linear',min:1765,max:2022,grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{stepSize:20,color:'#666',font:{size:11},callback:v=>Number.isInteger(v)?v:''},
+         title:{display:true,text:'Gads',color:'#888',font:{size:11,weight:'600'}}},
+      y:{type:'linear',min:0,grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{color:'#666',font:{size:11},callback:v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):''},
+         title:{display:true,text:'Iedzīvotāju skaits',color:'#888',font:{size:11,weight:'600'}}}
+    }
+  },
+  plugins:[eraBandsPlugin,eventLinesPlugin,highlightPlugin]
+});
+
+// ═══════════════════════════════════════════
+// GENDER CHARTS (Male / Female)
+// ═══════════════════════════════════════════
+// Pop gender scatter data for overlays
+const popMaleScatter = [], popFemaleScatter = [];
+
+Object.entries(popGender).forEach(([yr, g]) => {
+  if (g.m != null && g.f != null) {
+    const y = parseInt(yr);
+    popMaleScatter.push({x:y, y:g.m});
+    popFemaleScatter.push({x:y, y:g.f});
+  }
+});
+
+function refreshPopGender() {
+  const st = genderState.pop;
+  const base = popChart.data.datasets.filter(d => d.label==='Precīzi' || d.label==='Aptuveni');
+  if (st.m) base.push({label:'♂ Vīrieši',data:popMaleScatter,showLine:true,
+    borderColor:'#2563EB',backgroundColor:'#2563EB',borderWidth:2.5,borderDash:[6,3],
+    pointRadius:4,pointHoverRadius:7,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:.2});
+  if (st.f) base.push({label:'♀ Sievietes',data:popFemaleScatter,showLine:true,
+    borderColor:'#DC2626',backgroundColor:'#DC2626',borderWidth:2.5,borderDash:[6,3],
+    pointRadius:4,pointHoverRadius:7,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:.2});
+  popChart.data.datasets = base;
+  popChart.update();
+}
+
+function setScale(t){
+  popChart.options.scales.y.type=t;
+  popChart.options.scales.y.min=t==='logarithmic'?50:0;
+  popChart.update();
+  document.getElementById('btn-lin').classList.toggle('active',t==='linear');
+  document.getElementById('btn-log').classList.toggle('active',t==='logarithmic');
+}
+
+// ═══════════════════════════════════════════
+// AREA CHART (Pilsētas platības izmaiņas)
+// ═══════════════════════════════════════════
+const areaChart = new Chart(document.getElementById('areaChart'), {
+  type:'scatter',
+  data:{datasets:[{
+    label:'Platība (ha)', data:areaData, showLine:true,
+    borderColor:'#92400E', backgroundColor:'#92400E33',
+    borderWidth:2.5, pointRadius:6, pointHoverRadius:9,
+    pointBackgroundColor:'#92400E', pointBorderColor:'#fff', pointBorderWidth:2,
+    tension:0.3, fill:true
+  }]},
+  options:{
+    responsive:true, maintainAspectRatio:false, animation:{duration:400},
+    interaction:{mode:'nearest',axis:'x',intersect:false},
+    plugins:{legend:{display:false}, tooltip:{enabled:false, external(ctx){
+      const tip=document.getElementById('popTip');
+      if(ctx.tooltip.opacity===0){tip.classList.remove('visible');return;}
+      const dp=ctx.tooltip.dataPoints[0]; if(!dp) return;
+      const yr=dp.raw.x, ha=dp.raw.y;
+      const popEntry = popConfirmed.find(p => Math.abs(p.x - yr) <= 3);
+      const density = popEntry ? (popEntry.y / ha).toFixed(0) : null;
+      tip.innerHTML=`<div class="ct-year">${yr}. gads</div>
+        <div class="ct-main">${ha} ha</div>
+        ${density?`<div class="ct-sub">~${density} cilv./ha (blīvums)</div>`:''}
+        ${fmtSrc(yr)}`;
+      positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+    }}},
+    scales:{
+      x:{type:'linear',min:1770,max:2020,grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{color:'#666',font:{size:11},callback:v=>Number.isInteger(v)?v:''},
+         title:{display:true,text:'Gads',color:'#888',font:{size:11,weight:'600'}}},
+      y:{min:0,grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{color:'#666',font:{size:11}},
+         title:{display:true,text:'Platība (ha)',color:'#888',font:{size:11,weight:'600'}}}
+    }
+  }
+});
+
+// ═══════════════════════════════════════════
+// STACKED BAR TOOLTIP FACTORY
+// ═══════════════════════════════════════════
+function fmtPopGender(yr) {
+  const g = popGender[yr];
+  if (!g || g.m == null || g.f == null) return '';
+  const t = g.m + g.f;
+  return `<div style="display:flex;gap:.6rem;font-size:.7rem;color:#94a3b8;margin-top:2px">
+    <span>♂ ${fmtN(g.m)} (${(g.m/t*100).toFixed(1)}%)</span>
+    <span>♀ ${fmtN(g.f)} (${(g.f/t*100).toFixed(1)}%)</span></div>`;
+}
+
+function makeBarTip(tipId, groups, years, totals, notes, opts) {
+  // opts: { genderData, housingData, showPopGender } — optional enrichments
+  const gd = opts && opts.genderData;       // per-group gender (religion)
+  const hd = opts && opts.housingData;       // housing detail blocks
+  const spg = opts && opts.showPopGender;    // show total pop gender line
+  return function(ctx) {
+    const tip = document.getElementById(tipId);
+    if (ctx.tooltip.opacity === 0) { tip.classList.remove('visible'); return; }
+    const dps = ctx.tooltip.dataPoints;
+    if (!dps || !dps.length) return;
+    const idx = dps[0].dataIndex;
+    const yr  = years[idx];
+    const tot = totals[idx];
+    const note = notes[yr];
+    const rows = groups.map(g => {
+      const v = g.data[idx];
+      if (!v) return null;
+      let sub = '';
+      // Ethnicity: "Citas tautības" sub-breakdown
+      if (g.label === 'Citas tautības') {
+        const bk = ethCitasBreakdown[yr];
+        if (bk) sub = `<div class="ct-sub-rows">${
+          bk.map(b=>`<div class="ct-sub-row"><span>${b.l}</span><span>${fmtN(b.v)}</span></div>`).join('')
+        }</div>`;
+      }
+      // Religion: per-group gender sub-breakdown
+      if (gd && gd[yr] && gd[yr][g.label] && gd[yr][g.label].m != null) {
+        const rg = gd[yr][g.label];
+        sub += `<div class="ct-sub-rows"><div class="ct-sub-row"><span>♂ Vīrieši</span><span>${fmtN(rg.m)}</span></div><div class="ct-sub-row"><span>♀ Sievietes</span><span>${fmtN(rg.f)}</span></div></div>`;
+      }
+      return `<div class="ct-row">
+        <span class="ct-lbl"><span class="ct-sw" style="background:${g.color}"></span>${g.label}</span>
+        <span class="ct-val">${fmtN(v)}<span class="ct-pct">${fmtP(v,tot)}</span></span>
+      </div>${sub}`;
+    }).filter(Boolean).join('');
+    const known = groups.reduce((s,g) => s + (g.data[idx] || 0), 0);
+    const cov = Math.round(known / tot * 100);
+    // Population gender line (total M/F for that year)
+    const pgHtml = spg ? fmtPopGender(yr) : '';
+    // Housing detail block
+    let hdHtml = '';
+    if (hd && hd[yr]) {
+      const h = hd[yr];
+      hdHtml = `<hr class="ct-divider"><div style="font-size:.68rem;color:#94a3b8;margin-top:2px">
+        <div style="font-weight:700;margin-bottom:3px">${h.title}</div>
+        ${h.rows.map(r => `<div style="margin-bottom:3px"><span style="color:#cbd5e1">${r.cat}:</span> ${r.items.map(i => `${i.l} ${fmtN(i.v)}`).join(', ')}</div>`).join('')}
+      </div>`;
+    }
+    tip.innerHTML = `
+      <div class="ct-year">${yr}. gads</div>
+      <div class="ct-main">${fmtN(tot)} kopā</div>
+      <div class="ct-sub">Uzskaites pilnība: ~${cov}%</div>
+      ${pgHtml}
+      <div class="ct-rows">${rows}</div>
+      ${hdHtml}
+      ${note ? `<div class="ct-note">${note}</div>` : ''}
+      ${fmtSrc(yr)}`;
+    positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+  };
+}
+
+// ═══════════════════════════════════════════
+// LINE TREND TOOLTIP FACTORY
+// ═══════════════════════════════════════════
+function makeLineTip(tipId, groups, totals, years, opts) {
+  const spg = opts && opts.showPopGender;
+  return function(ctx) {
+    const tip = document.getElementById(tipId);
+    if (ctx.tooltip.opacity === 0) { tip.classList.remove('visible'); return; }
+    const dps = ctx.tooltip.dataPoints;
+    if (!dps || !dps.length) return;
+    const yr = dps[0].raw.x;
+    const yIdx = years.indexOf(yr);
+    const tot = yIdx >= 0 ? totals[yIdx] : null;
+    const rows = dps.map(dp => {
+      const g = groups.find(g => g.label === dp.dataset.label);
+      const v = dp.raw.y;
+      let sub = '';
+      if (dp.dataset.label === 'Citas tautības') {
+        const bk = ethCitasBreakdown[yr];
+        if (bk) sub = `<div class="ct-sub-rows">${
+          bk.map(b=>`<div class="ct-sub-row"><span>${b.l}</span><span>${fmtN(b.v)}</span></div>`).join('')
+        }</div>`;
+      }
+      return `<div class="ct-row">
+        <span class="ct-lbl"><span class="ct-sw" style="background:${g?g.color:'#888'}"></span>${dp.dataset.label}</span>
+        <span class="ct-val">${fmtN(v)}<span class="ct-pct">${fmtP(v,tot)}</span></span>
+      </div>${sub}`;
+    }).join('');
+    const pgHtml = spg ? fmtPopGender(yr) : '';
+    tip.innerHTML = `
+      <div class="ct-year">${yr}. gads</div>
+      ${tot ? `<div class="ct-sub">Kopā iedzīvotāji: ${fmtN(tot)}</div>` : ''}
+      ${pgHtml}
+      <div class="ct-rows">${rows}</div>
+      ${fmtSrc(yr)}`;
+    positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+  };
+}
+
+// ═══════════════════════════════════════════
+// SHARED BAR OPTIONS
+// ═══════════════════════════════════════════
+function stackedBarOptions(tipFn, yLabel) {
+  return {
+    responsive:true, maintainAspectRatio:false, animation:{duration:400},
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false}, tooltip:{enabled:false, external:tipFn}},
+    scales:{
+      x:{stacked:true, grid:{display:false},
+         ticks:{color:'#666',font:{size:11},maxRotation:45},
+         title:{display:true,text:'Gads',color:'#888',font:{size:11,weight:'600'}}},
+      y:{stacked:true, grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{color:'#666',font:{size:11}, callback:v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):''+''},
+         title:{display:true,text:yLabel||'Iedzīvotāju skaits',color:'#888',font:{size:11,weight:'600'}}}
+    }
+  };
+}
+function lineOptions(tipFn, yLabel) {
+  return {
+    responsive:true, maintainAspectRatio:false, animation:{duration:400},
+    interaction:{mode:'index',axis:'x',intersect:false},
+    plugins:{legend:{display:false}, tooltip:{enabled:false, external:tipFn}},
+    scales:{
+      x:{type:'linear', grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{stepSize:10, color:'#666',font:{size:11}, callback:v=>Number.isInteger(v)?v:''},
+         title:{display:true,text:'Gads',color:'#888',font:{size:11,weight:'600'}}},
+      y:{min:0, grid:{color:'rgba(0,0,0,.05)'},
+         ticks:{color:'#666',font:{size:11}, callback:v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):''+''},
+         title:{display:true,text:yLabel||'Iedzīvotāju skaits',color:'#888',font:{size:11,weight:'600'}}}
+    }
+  };
+}
+
+// ═══════════════════════════════════════════
+// BUILD STACKED DATASETS
+// ═══════════════════════════════════════════
+function makeStackedDS(groups, totals, mode) {
+  return groups.map(g => ({
+    label:g.label, backgroundColor:g.color+'bb', borderColor:g.color, borderWidth:1,
+    data: g.data.map((v,i) => {
+      if (v == null) return 0;
+      return mode === 'pct' ? parseFloat((v / totals[i] * 100).toFixed(2)) : v;
+    })
+  }));
+}
+function makeLineDS(groups, years, totals, selected, mode) {
+  return groups.filter(g => selected.has(g.label)).map(g => ({
+    label: g.label,
+    borderColor: g.color, backgroundColor: g.color + '25',
+    borderWidth: 2.5, showLine: true, pointRadius: 6, pointHoverRadius: 9,
+    pointBackgroundColor: g.color, pointBorderColor: '#fff', pointBorderWidth: 2,
+    tension: 0.25, fill: false, spanGaps: false,
+    data: years.map((y,i) => {
+      const v = g.data[i];
+      if (v == null) return null;
+      const val = mode === 'pct' ? parseFloat((v / totals[i] * 100).toFixed(2)) : v;
+      return {x: y, y: val};
+    }).filter(p => p !== null)
+  }));
+}
+
+// ═══════════════════════════════════════════
+// ETHNIC CHARTS
+// ═══════════════════════════════════════════
+let ethMode = 'abs';
+let ethSel  = new Set();
+
+const ethBarTip  = makeBarTip ('ethTip', ethGroups, ethYears, ethTotal, ethNotes, {showPopGender:true});
+const ethLineTip = makeLineTip('ethTip', ethGroups, ethTotal, ethYears, {showPopGender:true});
+
+const ethBarChart = new Chart(document.getElementById('ethBarChart'), {
+  type:'bar',
+  data:{ labels:ethYears, datasets:makeStackedDS(ethGroups, ethTotal, 'abs') },
+  options: stackedBarOptions(ethBarTip)
+});
+const ethLineChart = new Chart(document.getElementById('ethLineChart'), {
+  type:'scatter',
+  data:{ datasets:[] },
+  options: lineOptions(ethLineTip)
+});
+
+function buildEthLegend() {
+  const el = document.getElementById('eth-legend');
+  el.innerHTML = ethGroups.map((g,i) => `
+    <div class="legend-item" id="eth-leg-${i}"
+         style="--lc:${g.color};--lbg:${g.color}22"
+         onclick="toggleEth('${g.label}',${i})">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildEthLegend();
+
+function toggleEth(label, idx) {
+  if (ethSel.has(label)) ethSel.delete(label); else ethSel.add(label);
+  updateEthView();
+}
+function clearEthSel() { ethSel.clear(); updateEthView(); }
+
+function updateEthView() {
+  const hasSel = ethSel.size > 0;
+  ethGroups.forEach((g,i) => {
+    const el = document.getElementById('eth-leg-'+i);
+    el.classList.toggle('selected', ethSel.has(g.label));
+    el.classList.toggle('dimmed',   hasSel && !ethSel.has(g.label));
+  });
+  document.getElementById('eth-bar-wrap').style.display  = hasSel ? 'none'  : 'block';
+  document.getElementById('eth-line-wrap').style.display = hasSel ? 'block' : 'none';
+  document.getElementById('eth-clear').classList.toggle('visible', hasSel);
+  const hint = document.getElementById('eth-hint');
+  if (hasSel) {
+    hint.classList.add('visible');
+    const names = [...ethSel].join(', ');
+    document.getElementById('eth-hint-text').textContent =
+      `${names}. Klikšķiniet uz citām grupām, lai pievienotu salīdzinājumam.`;
+  } else {
+    hint.classList.remove('visible');
+  }
+  if (hasSel) {
+    const yLabel = ethMode === 'pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+    ethLineChart.data.datasets = makeLineDS(ethGroups, ethYears, ethTotal, ethSel, ethMode);
+    ethLineChart.options.scales.y.title.text = yLabel;
+    ethLineChart.options.scales.y.ticks.callback = ethMode==='pct'
+      ? v => v.toFixed(1)+'%' : v => v>=1000?(v/1000).toFixed(0)+'k':v+'';
+    ethLineChart.update();
+  }
+}
+
+function setEthMode(mode) {
+  ethMode = mode;
+  document.getElementById('eth-abs').classList.toggle('active', mode==='abs');
+  document.getElementById('eth-pct').classList.toggle('active', mode==='pct');
+  const yLabel = mode==='pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+  const yCb = mode==='pct'
+    ? v=>v.toFixed(1)+'%' : v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):'';
+  ethBarChart.data.datasets = makeStackedDS(ethGroups, ethTotal, mode);
+  ethBarChart.options.scales.y.title.text = yLabel;
+  ethBarChart.options.scales.y.ticks.callback = yCb;
+  ethBarChart.update();
+  if (ethSel.size > 0) {
+    ethLineChart.data.datasets = makeLineDS(ethGroups, ethYears, ethTotal, ethSel, mode);
+    ethLineChart.options.scales.y.title.text = yLabel;
+    ethLineChart.options.scales.y.ticks.callback = yCb;
+    ethLineChart.update();
+  }
+}
+
+// ═══════════════════════════════════════════
+// RELIGION CHARTS
+// ═══════════════════════════════════════════
+let relMode = 'abs';
+let relSel  = new Set();
+
+const relBarTip  = makeBarTip ('relTip', relGroups, relYears, relTotal, relNotes, {genderData: relGender, showPopGender:true});
+const relLineTip = makeLineTip('relTip', relGroups, relTotal, relYears, {showPopGender:true});
+
+const relBarChart = new Chart(document.getElementById('relBarChart'), {
+  type:'bar',
+  data:{ labels:relYears, datasets:makeStackedDS(relGroups, relTotal, 'abs') },
+  options: stackedBarOptions(relBarTip)
+});
+const relLineChart = new Chart(document.getElementById('relLineChart'), {
+  type:'scatter',
+  data:{ datasets:[] },
+  options: lineOptions(relLineTip)
+});
+
+function buildRelLegend() {
+  const el = document.getElementById('rel-legend');
+  el.innerHTML = relGroups.map((g,i) => `
+    <div class="legend-item" id="rel-leg-${i}"
+         style="--lc:${g.color};--lbg:${g.color}22"
+         onclick="toggleRel('${g.label}',${i})">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildRelLegend();
+
+function toggleRel(label, idx) {
+  if (relSel.has(label)) relSel.delete(label); else relSel.add(label);
+  updateRelView();
+}
+function clearRelSel() { relSel.clear(); updateRelView(); }
+
+function updateRelView() {
+  const hasSel = relSel.size > 0;
+  updateRelGenderToggles();
+  relGroups.forEach((g,i) => {
+    const el = document.getElementById('rel-leg-'+i);
+    el.classList.toggle('selected', relSel.has(g.label));
+    el.classList.toggle('dimmed',   hasSel && !relSel.has(g.label));
+  });
+  document.getElementById('rel-bar-wrap').style.display  = hasSel ? 'none'  : 'block';
+  document.getElementById('rel-line-wrap').style.display = hasSel ? 'block' : 'none';
+  document.getElementById('rel-clear').classList.toggle('visible', hasSel);
+  const hint = document.getElementById('rel-hint');
+  if (hasSel) {
+    hint.classList.add('visible');
+    const names = [...relSel].join(', ');
+    document.getElementById('rel-hint-text').textContent =
+      `${names}. Klikšķiniet uz citām grupām, lai pievienotu salīdzinājumam.`;
+  } else {
+    hint.classList.remove('visible');
+  }
+  refreshRelBarWithGender();
+  if (hasSel) {
+    const yLabel = relMode==='pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+    const groupDS = makeLineDS(relGroups, relYears, relTotal, relSel, relMode);
+    const gDS = makeRelGenderScatterDS(relYears, relMode);
+    relLineChart.data.datasets = [...groupDS, ...gDS];
+    relLineChart.options.scales.y.title.text = yLabel;
+    relLineChart.options.scales.y.ticks.callback = relMode==='pct'
+      ? v=>v.toFixed(1)+'%' : v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):'';
+    relLineChart.update();
+  }
+}
+
+function setRelMode(mode) {
+  relMode = mode;
+  document.getElementById('rel-abs').classList.toggle('active', mode==='abs');
+  document.getElementById('rel-pct').classList.toggle('active', mode==='pct');
+  const yLabel = mode==='pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+  const yCb = mode==='pct'
+    ? v=>v.toFixed(1)+'%' : v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):'';
+  const relBarDS = makeStackedDS(relGroups, relTotal, mode);
+  const relGDS = makeRelGenderDS(relYears, mode);
+  relBarChart.data.datasets = [...relBarDS, ...relGDS];
+  relBarChart.options.scales.y.title.text = yLabel;
+  relBarChart.options.scales.y.ticks.callback = yCb;
+  relBarChart.update();
+  if (relSel.size > 0) {
+    const groupDS = makeLineDS(relGroups, relYears, relTotal, relSel, mode);
+    const gDS = makeRelGenderScatterDS(relYears, mode);
+    relLineChart.data.datasets = [...groupDS, ...gDS];
+    relLineChart.options.scales.y.title.text = yLabel;
+    relLineChart.options.scales.y.ticks.callback = yCb;
+    relLineChart.update();
+  }
+}
+
+// ═══════════════════════════════════════════
+// SOCIAL CLASS CHARTS
+// ═══════════════════════════════════════════
+let socMode = 'abs';
+let socSel  = new Set();
+
+const socBarTip  = makeBarTip ('socTip', socGroups, socYears, socTotal, socNotes, {showPopGender:true});
+const socLineTip = makeLineTip('socTip', socGroups, socTotal, socYears, {showPopGender:true});
+
+const socBarChart = new Chart(document.getElementById('socBarChart'), {
+  type:'bar',
+  data:{ labels:socYears, datasets:makeStackedDS(socGroups, socTotal, 'abs') },
+  options: stackedBarOptions(socBarTip, 'Iedzīvotāju skaits')
+});
+const socLineChart = new Chart(document.getElementById('socLineChart'), {
+  type:'scatter',
+  data:{ datasets:[] },
+  options: lineOptions(socLineTip, 'Iedzīvotāju skaits')
+});
+
+function buildSocLegend() {
+  const el = document.getElementById('soc-legend');
+  el.innerHTML = socGroups.map((g,i) => `
+    <div class="legend-item" id="soc-leg-${i}"
+         style="--lc:${g.color};--lbg:${g.color}22"
+         onclick="toggleSoc('${g.label}',${i})">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildSocLegend();
+
+function toggleSoc(label, idx) {
+  if (socSel.has(label)) socSel.delete(label); else socSel.add(label);
+  updateSocView();
+}
+function clearSocSel() { socSel.clear(); updateSocView(); }
+
+function updateSocView() {
+  const hasSel = socSel.size > 0;
+  socGroups.forEach((g,i) => {
+    const el = document.getElementById('soc-leg-'+i);
+    el.classList.toggle('selected', socSel.has(g.label));
+    el.classList.toggle('dimmed',   hasSel && !socSel.has(g.label));
+  });
+  document.getElementById('soc-bar-wrap').style.display  = hasSel ? 'none'  : 'block';
+  document.getElementById('soc-line-wrap').style.display = hasSel ? 'block' : 'none';
+  document.getElementById('soc-clear').classList.toggle('visible', hasSel);
+  const hint = document.getElementById('soc-hint');
+  if (hasSel) {
+    hint.classList.add('visible');
+    const names = [...socSel].join(', ');
+    document.getElementById('soc-hint-text').textContent =
+      `${names}. Klikšķiniet uz citām kārtām, lai pievienotu salīdzinājumam.`;
+  } else {
+    hint.classList.remove('visible');
+  }
+  if (hasSel) {
+    const yLabel = socMode === 'pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+    socLineChart.data.datasets = makeLineDS(socGroups, socYears, socTotal, socSel, socMode);
+    socLineChart.options.scales.y.title.text = yLabel;
+    socLineChart.options.scales.y.ticks.callback = socMode==='pct'
+      ? v => v.toFixed(1)+'%' : v => v>=1000?(v/1000).toFixed(0)+'k':v+'';
+    socLineChart.update();
+  }
+}
+
+function setSocMode(mode) {
+  socMode = mode;
+  document.getElementById('soc-abs').classList.toggle('active', mode==='abs');
+  document.getElementById('soc-pct').classList.toggle('active', mode==='pct');
+  const yLabel = mode==='pct' ? '% no kopējā skaita' : 'Iedzīvotāju skaits';
+  const yCb = mode==='pct'
+    ? v=>v.toFixed(1)+'%' : v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):'';
+  socBarChart.data.datasets = makeStackedDS(socGroups, socTotal, mode);
+  socBarChart.options.scales.y.title.text = yLabel;
+  socBarChart.options.scales.y.ticks.callback = yCb;
+  socBarChart.update();
+  if (socSel.size > 0) {
+    socLineChart.data.datasets = makeLineDS(socGroups, socYears, socTotal, socSel, mode);
+    socLineChart.options.scales.y.title.text = yLabel;
+    socLineChart.options.scales.y.ticks.callback = yCb;
+    socLineChart.update();
+  }
+}
+
+
+// ═══════════════════════════════════════════
+// GENDER LINE OVERLAYS ON BAR CHARTS
+// ═══════════════════════════════════════════
+const genderState = { pop:{m:false,f:false}, rel:{m:false,f:false} };
+
+// Resolve M/F values for rel tab: per-religion from relGender, or total pop if no entity selected
+function resolveGender(yr, singleLabel) {
+  if (singleLabel) {
+    const rg = relGender[yr];
+    if (rg && rg[singleLabel]) return rg[singleLabel];
+    return null;
+  }
+  return popGender[yr] || null;
+}
+
+// What single religion is selected? null if 0 or 2+
+function getRelSingleSel() {
+  return relSel.size === 1 ? [...relSel][0] : null;
+}
+
+// Build gender line-type datasets for rel BAR chart (uses array indices, not {x,y})
+function makeRelGenderDS(years, mode) {
+  const st = genderState.rel;
+  if (!st.m && !st.f) return [];
+  const single = getRelSingleSel();
+  const mData = years.map(yr => { const g=resolveGender(yr,single); return g&&g.m!=null?g.m:null; });
+  const fData = years.map(yr => { const g=resolveGender(yr,single); return g&&g.f!=null?g.f:null; });
+  const tData = years.map(yr => { const g=resolveGender(yr,single); return g?(g.m||0)+(g.f||0):null; });
+  const labelSuffix = single ? ' ('+single+')' : '';
+  const ds = [];
+  if (st.m) {
+    ds.push({
+      label:'♂ Vīrieši'+labelSuffix, type:'line',
+      borderColor:'#2563EB', backgroundColor:'#2563EB22',
+      borderWidth:2.5, borderDash:[6,3],
+      pointRadius:4, pointHoverRadius:7,
+      pointBackgroundColor:'#2563EB', pointBorderColor:'#fff', pointBorderWidth:2,
+      tension:0.25, fill:false, order:0, stack:'gender',
+      data: mode==='pct'
+        ? mData.map((v,i)=> v!=null&&tData[i]?parseFloat((v/tData[i]*100).toFixed(1)):null)
+        : mData,
+      yAxisID:'y'
+    });
+  }
+  if (st.f) {
+    ds.push({
+      label:'♀ Sievietes'+labelSuffix, type:'line',
+      borderColor:'#DC2626', backgroundColor:'#DC262622',
+      borderWidth:2.5, borderDash:[6,3],
+      pointRadius:4, pointHoverRadius:7,
+      pointBackgroundColor:'#DC2626', pointBorderColor:'#fff', pointBorderWidth:2,
+      tension:0.25, fill:false, order:0, stack:'gender',
+      data: mode==='pct'
+        ? fData.map((v,i)=> v!=null&&tData[i]?parseFloat((v/tData[i]*100).toFixed(1)):null)
+        : fData,
+      yAxisID:'y'
+    });
+  }
+  return ds;
+}
+
+function refreshRelBarWithGender() {
+  const barDS = makeStackedDS(relGroups, relTotal, relMode);
+  const genderDS = makeRelGenderDS(relYears, relMode);
+  relBarChart.data.datasets = [...barDS, ...genderDS];
+  relBarChart.update();
+}
+
+// Gender scatter datasets for rel line (scatter) chart — uses {x,y} points
+function makeRelGenderScatterDS(years, mode) {
+  const st = genderState.rel;
+  if (!st.m && !st.f) return [];
+  const single = getRelSingleSel();
+  const labelSuffix = single ? ' ('+single+')' : '';
+  const ds = [];
+  if (st.m) {
+    const pts = [];
+    years.forEach(yr => {
+      const g = resolveGender(yr, single);
+      if (g && g.m != null) {
+        if (mode === 'pct') {
+          const t = (g.m||0) + (g.f||0);
+          if (t) pts.push({x:yr, y:parseFloat((g.m/t*100).toFixed(1))});
+        } else { pts.push({x:yr, y:g.m}); }
+      }
+    });
+    ds.push({label:'♂ Vīrieši'+labelSuffix,data:pts,showLine:true,
+      borderColor:'#2563EB',backgroundColor:'#2563EB',borderWidth:2.5,borderDash:[6,3],
+      pointRadius:4,pointHoverRadius:7,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:.2});
+  }
+  if (st.f) {
+    const pts = [];
+    years.forEach(yr => {
+      const g = resolveGender(yr, single);
+      if (g && g.f != null) {
+        if (mode === 'pct') {
+          const t = (g.m||0) + (g.f||0);
+          if (t) pts.push({x:yr, y:parseFloat((g.f/t*100).toFixed(1))});
+        } else { pts.push({x:yr, y:g.f}); }
+      }
+    });
+    ds.push({label:'♀ Sievietes'+labelSuffix,data:pts,showLine:true,
+      borderColor:'#DC2626',backgroundColor:'#DC2626',borderWidth:2.5,borderDash:[6,3],
+      pointRadius:4,pointHoverRadius:7,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:.2});
+  }
+  return ds;
+}
+
+function refreshRelLineWithGender() {
+  if (relSel.size === 0) return;
+  const groupDS = makeLineDS(relGroups, relYears, relTotal, relSel, relMode);
+  const genderDS = makeRelGenderScatterDS(relYears, relMode);
+  relLineChart.data.datasets = [...groupDS, ...genderDS];
+  relLineChart.update();
+}
+
+// Manage rel gender toggle: enabled when 0 or 1 selected, disabled for 2+
+function updateRelGenderToggles() {
+  const disabled = relSel.size > 1;
+  const btnM = document.getElementById('rel-g-m');
+  const btnF = document.getElementById('rel-g-f');
+  btnM.disabled = disabled;
+  btnF.disabled = disabled;
+  btnM.style.opacity = disabled ? '.35' : '1';
+  btnF.style.opacity = disabled ? '.35' : '1';
+  btnM.style.pointerEvents = disabled ? 'none' : 'auto';
+  btnF.style.pointerEvents = disabled ? 'none' : 'auto';
+  if (disabled) {
+    genderState.rel.m = false;
+    genderState.rel.f = false;
+    btnM.classList.remove('active-m');
+    btnF.classList.remove('active-f');
+  }
+}
+
+function toggleGender(prefix, sex) {
+  const st = genderState[prefix];
+  st[sex] = !st[sex];
+  const btn = document.getElementById(prefix+'-g-'+sex);
+  btn.classList.toggle(sex==='m'?'active-m':'active-f', st[sex]);
+  if (prefix === 'pop') { refreshPopGender(); return; }
+  // Only rel has gender toggles now
+  refreshRelBarWithGender();
+  refreshRelLineWithGender();
+}
+
+// ═══════════════════════════════════════════
+// HOUSE CHARTS
+// ═══════════════════════════════════════════
+let houseMode = 'abs';
+let houseSel  = new Set();
+
+const houseBarTip  = makeBarTip ('houseTip', houseGroups, houseYears, houseTotal, houseNotes, {showPopGender:true});
+const houseLineTip = makeLineTip('houseTip', houseGroups, houseTotal, houseYears, {showPopGender:true});
+
+const houseBarChart = new Chart(document.getElementById('houseBarChart'), {
+  type:'bar',
+  data:{ labels:houseYears, datasets:makeStackedDS(houseGroups, houseTotal, 'abs') },
+  options: stackedBarOptions(houseBarTip, 'Māju skaits')
+});
+const houseLineChart = new Chart(document.getElementById('houseLineChart'), {
+  type:'scatter',
+  data:{ datasets:[] },
+  options: lineOptions(houseLineTip, 'Māju skaits')
+});
+
+function buildHouseLegend() {
+  const el = document.getElementById('house-legend');
+  el.innerHTML = houseGroups.map((g,i) => `
+    <div class="legend-item" id="house-leg-${i}"
+         style="--lc:${g.color};--lbg:${g.color}22"
+         onclick="toggleHouse('${g.label}',${i})">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildHouseLegend();
+
+function toggleHouse(label, idx) {
+  if (houseSel.has(label)) houseSel.delete(label); else houseSel.add(label);
+  updateHouseView();
+}
+function clearHouseSel() { houseSel.clear(); updateHouseView(); }
+
+function updateHouseView() {
+  const hasSel = houseSel.size > 0;
+  houseGroups.forEach((g,i) => {
+    const el = document.getElementById('house-leg-'+i);
+    el.classList.toggle('selected', houseSel.has(g.label));
+    el.classList.toggle('dimmed',   hasSel && !houseSel.has(g.label));
+  });
+  document.getElementById('house-bar-wrap').style.display  = hasSel ? 'none'  : 'block';
+  document.getElementById('house-line-wrap').style.display = hasSel ? 'block' : 'none';
+  document.getElementById('house-clear').classList.toggle('visible', hasSel);
+  const hint = document.getElementById('house-hint');
+  if (hasSel) {
+    hint.classList.add('visible');
+    const names = [...houseSel].join(', ');
+    document.getElementById('house-hint-text').textContent =
+      `${names}. Klikšķiniet uz citiem veidiem, lai pievienotu salīdzinājumam.`;
+  } else {
+    hint.classList.remove('visible');
+  }
+  if (hasSel) {
+    const yLabel = houseMode === 'pct' ? '% no kopējā skaita' : 'Māju skaits';
+    houseLineChart.data.datasets = makeLineDS(houseGroups, houseYears, houseTotal, houseSel, houseMode);
+    houseLineChart.options.scales.y.title.text = yLabel;
+    houseLineChart.options.scales.y.ticks.callback = houseMode==='pct'
+      ? v => v.toFixed(1)+'%' : v => v>=1000?(v/1000).toFixed(0)+'k':v+'';
+    houseLineChart.update();
+  }
+}
+
+function setHouseMode(mode) {
+  houseMode = mode;
+  document.getElementById('house-abs').classList.toggle('active', mode==='abs');
+  document.getElementById('house-pct').classList.toggle('active', mode==='pct');
+  const yLabel = mode==='pct' ? '% no kopējā skaita' : 'Māju skaits';
+  const yCb = mode==='pct'
+    ? v=>v.toFixed(1)+'%' : v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):'';
+  houseBarChart.data.datasets = makeStackedDS(houseGroups, houseTotal, mode);
+  houseBarChart.options.scales.y.title.text = yLabel;
+  houseBarChart.options.scales.y.ticks.callback = yCb;
+  houseBarChart.update();
+  if (houseSel.size > 0) {
+    houseLineChart.data.datasets = makeLineDS(houseGroups, houseYears, houseTotal, houseSel, mode);
+    houseLineChart.options.scales.y.title.text = yLabel;
+    houseLineChart.options.scales.y.ticks.callback = yCb;
+    houseLineChart.update();
+  }
+}
+
+// ═══════════════════════════════════════════
+// INFRASTRUCTURE CHART
+// ═══════════════════════════════════════════
+const infraTip = function(ctx) {
+  const tip = document.getElementById('infraTip');
+  if (ctx.tooltip.opacity === 0) { tip.classList.remove('visible'); return; }
+  const dps = ctx.tooltip.dataPoints;
+  if (!dps || !dps.length) return;
+  const yr = dps[0].raw.x;
+  const rows = dps.map(dp => {
+    return `<div class="ct-row">
+      <span class="ct-lbl"><span class="ct-sw" style="background:${dp.dataset.borderColor}"></span>${dp.dataset.label}</span>
+      <span class="ct-val">${fmtN(dp.raw.y)}</span>
+    </div>`;
+  }).join('');
+  tip.innerHTML = `
+    <div class="ct-year">${yr}. gads</div>
+    <div class="ct-rows">${rows}</div>
+    ${fmtSrc(yr)}`;
+  positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+};
+
+const infraChart = new Chart(document.getElementById('infraChart'), {
+  type:'scatter',
+  data:{
+    datasets: infraGroups.map(g => ({
+      label: g.label,
+      borderColor: g.color,
+      backgroundColor: g.color + '25',
+      borderWidth: 2,
+      pointRadius: 5,
+      pointHoverRadius: 8,
+      pointBackgroundColor: g.color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1.5,
+      showLine: true,
+      tension: 0.3,
+      fill: false,
+      data: g.data
+    }))
+  },
+  options:{
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {duration: 400},
+    interaction: {mode:'nearest', axis:'x', intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{enabled:false, external:infraTip}
+    },
+    scales:{
+      x:{
+        type:'linear',
+        min:1580,
+        max:1930,
+        grid:{color:'rgba(0,0,0,.05)'},
+        ticks:{color:'#666', font:{size:11}, callback:v=>Number.isInteger(v)?v:''},
+        title:{display:true, text:'Gads', color:'#888', font:{size:11, weight:'600'}}
+      },
+      y:{
+        min:0,
+        grid:{color:'rgba(0,0,0,.05)'},
+        ticks:{color:'#666', font:{size:11}, callback:v=>Number.isInteger(v)?v.toLocaleString('lv-LV'):''},
+        title:{display:true, text:'Iestāžu skaits', color:'#888', font:{size:11, weight:'600'}}
+      }
+    }
+  }
+});
+
+function buildInfraLegend() {
+  const el = document.getElementById('infra-legend');
+  el.innerHTML = infraGroups.map((g,i) => `
+    <div class="legend-item" style="cursor:default" id="infra-leg-${i}">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildInfraLegend();
+
+// ═══════════════════════════════════════════
+// COMPARISON CHART (Latgales pilsētu salīdzinājums)
+// ═══════════════════════════════════════════
+const compareTip = function(ctx) {
+  const tip = document.getElementById('compareTip');
+  if (ctx.tooltip.opacity === 0) { tip.classList.remove('visible'); return; }
+  const dps = ctx.tooltip.dataPoints;
+  if (!dps || !dps.length) return;
+  const yr = dps[0].raw.x;
+  const rows = dps.map(dp => {
+    return `<div class="ct-row">
+      <span class="ct-lbl"><span class="ct-sw" style="background:${dp.dataset.borderColor}"></span>${dp.dataset.label}</span>
+      <span class="ct-val">${fmtN(dp.raw.y)}</span>
+    </div>`;
+  }).join('');
+  tip.innerHTML = `
+    <div class="ct-year">${yr}. gads</div>
+    <div class="ct-rows">${rows}</div>`;
+  positionTip(tip, ctx.tooltip.caretX, ctx.tooltip.caretY, ctx.chart);
+};
+
+const compareChart = new Chart(document.getElementById('compareChart'), {
+  type:'scatter',
+  data:{
+    datasets: [
+      {
+        label: 'Rēzekne',
+        borderColor: '#1a3a6b',
+        backgroundColor: '#1a3a6b25',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#1a3a6b',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        showLine: true,
+        tension: 0.3,
+        fill: false,
+        data: compareData.filter(d => d.rezekne !== null).map(d => ({x:d.x,y:d.rezekne}))
+      },
+      {
+        label: 'Daugavpils',
+        borderColor: '#DC2626',
+        backgroundColor: '#DC262625',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#DC2626',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        showLine: true,
+        tension: 0.3,
+        fill: false,
+        data: compareData.filter(d => d.daugavpils !== null).map(d => ({x:d.x,y:d.daugavpils}))
+      },
+      {
+        label: 'Ludza',
+        borderColor: '#059669',
+        backgroundColor: '#05966925',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#059669',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        showLine: true,
+        tension: 0.3,
+        fill: false,
+        data: compareData.filter(d => d.ludza !== null).map(d => ({x:d.x,y:d.ludza}))
+      }
+    ]
+  },
+  options:{
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {duration: 400},
+    interaction: {mode:'nearest', axis:'x', intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{enabled:false, external:compareTip}
+    },
+    scales:{
+      x:{
+        type:'linear',
+        min:1800,
+        max:1900,
+        grid:{color:'rgba(0,0,0,.05)'},
+        ticks:{color:'#666', font:{size:11}, callback:v=>Number.isInteger(v)?v:''},
+        title:{display:true, text:'Gads', color:'#888', font:{size:11, weight:'600'}}
+      },
+      y:{
+        type:'logarithmic',
+        min:100,
+        grid:{color:'rgba(0,0,0,.05)'},
+        ticks:{color:'#666', font:{size:11}, callback:v=>v.toLocaleString('lv-LV')},
+        title:{display:true, text:'Iedzīvotāju skaits (logaritmiska skala)', color:'#888', font:{size:11, weight:'600'}}
+      }
+    }
+  }
+});
+
+function buildCompareLegend() {
+  const el = document.getElementById('compare-legend');
+  el.innerHTML = [
+    {label:'Rēzekne', color:'#1a3a6b'},
+    {label:'Daugavpils', color:'#DC2626'},
+    {label:'Ludza', color:'#059669'}
+  ].map((g,i) => `
+    <div class="legend-item" style="cursor:default" id="compare-leg-${i}">
+      <div class="legend-dot" style="background:${g.color}"></div>${g.label}
+    </div>`).join('');
+}
+buildCompareLegend();
+
+// ═══════════════════════════════════════════
+// POP DATASET TOGGLE (Precīzi / Aptuveni)
+// ═══════════════════════════════════════════
+let popSel = new Set(['Precīzi', 'Aptuveni']);
+function togglePop(label) {
+  if (popSel.has(label)) popSel.delete(label);
+  else popSel.add(label);
+  updatePopLegend();
+}
+
+// ═══════════════════════════════════════════
+// ERA TABLE COLLAPSIBLE
+// ═══════════════════════════════════════════
+function toggleEraTable() {
+  const wrap  = document.getElementById('era-table-wrap');
+  const arrow = document.getElementById('era-arrow');
+  const isOpen = wrap.style.display === 'block';
+  wrap.style.display = isOpen ? 'none' : 'block';
+  arrow.classList.toggle('open', !isOpen);
+}
+function updatePopLegend() {
+  const hasPrecizi  = popSel.has('Precīzi');
+  const hasAptuveni = popSel.has('Aptuveni');
+  const leg0 = document.getElementById('pop-leg-0');
+  const leg1 = document.getElementById('pop-leg-1');
+  leg0.classList.toggle('selected', hasPrecizi);
+  leg0.classList.toggle('dimmed',   !hasPrecizi);
+  leg1.classList.toggle('selected', hasAptuveni);
+  leg1.classList.toggle('dimmed',   !hasAptuveni);
+  popChart.data.datasets[0].hidden = !hasPrecizi;
+  popChart.data.datasets[1].hidden = !hasAptuveni;
+  popChart.update();
+}
+
+// ═══════════════════════════════════════════
+// STAT CARD YEAR HIGHLIGHT
+// ═══════════════════════════════════════════
+let highlightTimer = null;
+function highlightYear(year) {
+  highlightedYear = year;
+  switchTab('pop');
+  popChart.update();
+  if (highlightTimer) clearTimeout(highlightTimer);
+  highlightTimer = setTimeout(() => {
+    highlightedYear = null;
+    popChart.update();
+    highlightTimer = null;
+  }, 3000);
+}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+const tabIds = ['pop','eth','rel','soc','house','infra','compare'];
+function resizeAllCharts() {
+  popChart.resize(); areaChart.resize(); ethBarChart.resize(); ethLineChart.resize();
+  relBarChart.resize(); relLineChart.resize();
+  socBarChart.resize(); socLineChart.resize();
+  houseBarChart.resize(); houseLineChart.resize();
+  infraChart.resize(); compareChart.resize();
+}
+function switchTab(id) {
+  tabIds.forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===id);
+  });
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach((b,i) => {
+    b.classList.toggle('active', tabIds[i]===id);
+    // Scroll active tab into view on mobile
+    if (tabIds[i]===id) b.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  });
+  // Two resize passes — first to catch the layout shift, second for mobile lag
+  setTimeout(resizeAllCharts, 20);
+  setTimeout(resizeAllCharts, 150);
+}
+// Resize charts on orientation change
+window.addEventListener('resize', function(){ setTimeout(resizeAllCharts, 50); });
+</script>
+</body>
+</html>
